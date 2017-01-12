@@ -1,4 +1,4 @@
-** INTRODUCTION **
+## INTRODUCTION
 
 Dmidecode reports information about your system's hardware as described in
 your system BIOS according to the SMBIOS/DMI standard. This information
@@ -25,7 +25,7 @@ documentation. But it fully provides the
 
 The build has been tested using mingw32 toolchain under Fedora 24.
 
-** mingw32 build **
+## mingw32 build
 
 This branch is a backport with some updates and fixes so it builds using
 mingw32 toolchain on a linux platform.
