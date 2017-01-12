@@ -8,6 +8,10 @@ typedef unsigned short u16;
 typedef signed short i16;
 typedef unsigned int u32;
 
+#ifdef __WIN32__
+typedef u8 BOOLEAN;
+#endif
+
 /*
  * You may use the following defines to adjust the type definitions
  * depending on the architecture:

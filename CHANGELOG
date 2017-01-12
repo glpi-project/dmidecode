@@ -1,3 +1,10 @@
+2017-01-11  Guillaume Bougard <gbougard@teclib.com>
+
+	* Added mingw32 toolchain support using old Hugo Weber patch from 2006
+	* Disabled few options to simplify the backport and it is only intended
+	  to update the dmidecode.exe file used in FusionInventory Agent Windows
+	  Installer. FusionInventory Agent calls dmidecode without options.
+
 2016-09-22  Jean Delvare  <jdelvare@suse.de>
 
 	* README: Explain that we can no longer support Cygwin.
@@ -655,6 +662,27 @@
 	* biosdecode.c: Add support for the FJKEYINF entry point, which
 	  contains data related to the "application panel" on Fujitsu
 	  laptops.
+
+2006-10-04  Hugo Weber  <address@hidden>
+	Written the code to compile under Windows 2003 and Vista
+	* util.c: the functions used to have mem_chunk working
+	  on WindowsNT/2000/XP were moved to winsmbios.c.
+	* winsmbios.h: added to organize functions to get SMBIOS
+	  on Windows.
+	* winsmbios.c: holds all functions needed to get SMBIOS
+	  on Windows.
+	* dmidecode.c: small changes on the main and dmi_table
+	  functions to support windows 2003.
+	* types.h: the dmi_header struct moved from dmidecode.c
+	  to this header due to windows functions uses it too.
+
+2006-04-20  Hugo Weber  <address@hidden>
+	Written the code to compile under windows NT, 2k, XP
+
+	* dmidecode.dev: DevC++ project. Used to compile dmidecode.
+	  get DevC++ on http://www.bloodshed.net/devcpp.html
+	* util.c: written mem_chunck to work on winnt, 2k, xp
+	* native.h: added in order to work on winnt, 2k, xp
 
 2006-05-23  Jean Delvare  <jdelvare@suse.de>
 

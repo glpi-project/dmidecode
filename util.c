@@ -37,6 +37,10 @@
 #endif /* !MAP_FAILED */
 #endif /* USE MMAP */
 
+#ifdef __WIN32__
+#include "winsmbios.h"
+#endif /* __WIN32__ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -47,6 +51,7 @@
 #include "types.h"
 #include "util.h"
 
+#ifndef __WIN32__
 static int myread(int fd, u8 *buf, size_t count, const char *prefix)
 {
 	ssize_t r = 1;
@@ -77,6 +82,7 @@ static int myread(int fd, u8 *buf, size_t count, const char *prefix)
 
 	return 0;
 }
+#endif /* __WIN32__ */
 
 int checksum(const u8 *buf, size_t len)
 {
@@ -146,6 +152,15 @@ void *read_file(size_t *max_len, const char *filename)
 	return p;
 }
 
+#ifdef __WIN32__
+void *mem_chunk(off_t base, size_t len, const char *devmem) {
+	if (devmem!=NULL) {
+		fprintf(stderr, "Can't decode from file %s\n",
+			devmem);
+	}
+	return mem_chunk_win(base, len);
+}
+#else
 /*
  * Copy a physical memory chunk into a memory buffer.
  * This function allocates memory.
@@ -237,6 +252,7 @@ out:
 
 	return p;
 }
+#endif /* __WIN32__ */
 
 int write_dump(size_t base, size_t len, const void *data, const char *dumpfile, int add)
 {

@@ -66,6 +66,10 @@
 #include "dmiopt.h"
 #include "dmioem.h"
 
+#ifdef __WIN32__
+#include "winsmbios.h"
+#endif /* __WIN32__ */
+
 #define out_of_spec "<OUT OF SPEC>"
 static const char *bad_index = "<BAD INDEX>";
 
@@ -4509,8 +4513,12 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 	}
 }
 
-static void dmi_table(off_t base, u32 len, u16 num, u16 ver, const char *devmem,
+#ifdef __WIN32__
+static void dmi_table(u8 *base, u32 len, u16 num, u16 ver, u32 flags)
+#else
+static void dmi_table(const u8 *base, u32 len, u16 num, u16 ver, const char *devmem,
 		      u32 flags)
+#endif /* __WIN32__ */
 {
 	u8 *buf;
 
@@ -4529,12 +4537,25 @@ static void dmi_table(off_t base, u32 len, u16 num, u16 ver, const char *devmem,
 				printf("%u structures occupying %u bytes.\n",
 				       num, len);
 			if (!(opt.flags & FLAG_FROM_DUMP))
-				printf("Table at 0x%08llX.\n",
-				       (unsigned long long)base);
+				printf("Table at 0x%08X.\n",
+				       (u32)base);
 		}
 		printf("\n");
 	}
 
+	/*
+	 * if devmem is NULL then base has the SMBIOS Table address
+	 * already allocated and not the physical memory address that
+	 * needs to be mapped.
+	 * This change was made to support Windows 2003 that blocks
+	 * access to physical memory but returns the SMBIOS Table
+	 * througth GetSystemFirmwareTable API.
+	 *
+	 * see more on winsmbios.h and winsmbios.c
+	 */
+#ifdef __WIN32__
+	buf = (u8 *)base;
+#else
 	if (flags & FLAG_NO_FILE_OFFSET)
 	{
 		/*
@@ -4567,6 +4588,7 @@ static void dmi_table(off_t base, u32 len, u16 num, u16 ver, const char *devmem,
 #endif
 		return;
 	}
+#endif /* __WIN32__ */
 
 	if (opt.flags & FLAG_DUMP_BIN)
 		dmi_table_dump(buf, len);
@@ -4582,6 +4604,7 @@ static void dmi_table(off_t base, u32 len, u16 num, u16 ver, const char *devmem,
  * as this is where we will put it in the output file. We adjust the
  * DMI checksum appropriately. The SMBIOS checksum needs no adjustment.
  */
+#ifndef __WIN32__
 static void overwrite_dmi_address(u8 *buf)
 {
 	buf[0x05] += buf[0x08] + buf[0x09] + buf[0x0A] + buf[0x0B] - 32;
@@ -4772,10 +4795,12 @@ static int address_from_efi(off_t *address)
 		fprintf(stderr, "%s: SMBIOS entry point missing\n", filename);
 	return ret;
 }
+#endif /* __WIN32__ */
 
 int main(int argc, char * const argv[])
 {
 	int ret = 0;                /* Returned value */
+#ifndef __WIN32__
 	int found = 0;
 	off_t fp;
 	size_t size;
@@ -4788,6 +4813,16 @@ int main(int argc, char * const argv[])
 	 */
 	setlinebuf(stdout);
 	setlinebuf(stderr);
+#else
+	/*
+	* these varibles are used only when run on windows 2003 or above.
+	* Since these versions block access to physical memory.
+	* Windows NT, 2000 and XP still accessing physical memory througth
+	* mem_chunck
+	*/
+	int num_structures = 0;
+	PRawSMBIOSData smb = NULL;
+#endif /* __WIN32__ */
 
 	if (sizeof(u8) != 1 || sizeof(u16) != 2 || sizeof(u32) != 4 || '\0' != 0)
 	{
@@ -4796,7 +4831,11 @@ int main(int argc, char * const argv[])
 	}
 
 	/* Set default option values */
+#ifdef __WIN32__
+	opt.devmem = "memory";
+#else
 	opt.devmem = DEFAULT_MEM_DEV;
+#endif /* __WIN32__ */
 	opt.flags = 0;
 
 	if (parse_command_line(argc, argv)<0)
@@ -4821,6 +4860,7 @@ int main(int argc, char * const argv[])
 		printf("# dmidecode %s\n", VERSION);
 
 	/* Read from dump if so instructed */
+#ifndef __WIN32__
 	if (opt.flags & FLAG_FROM_DUMP)
 	{
 		if (!(opt.flags & FLAG_QUIET))
@@ -4916,9 +4956,68 @@ int main(int argc, char * const argv[])
 	goto done;
 
 memory_scan:
+#endif /*__WIN32__*/
 	if (!(opt.flags & FLAG_QUIET))
 		printf("Scanning %s for entry point.\n", opt.devmem);
 	/* Fallback to memory scan (x86, x86_64) */
+
+	/*
+	 * If running on windows, checks if its Windows 2003 or vista and
+	 * get the SMBIOS data without access to physical memory.
+	 * If its Windows NT, 2000 or XP, access the physical memory and
+	 * scans for SMBIOS table entry point, just like all other OS.
+	 * If its Windows 9x or Me, print error and exits.
+	 */
+#ifdef __WIN32__
+	switch (get_windows_platform()) {
+
+		case WIN_2003_VISTA: // gets the SMBIOS table, prints values and exits
+
+			// loads the GetSystemFirmwareTable function
+			if (!LocateNtdllEntryPoints()) {
+				ret = 1;
+				printf("Error while loading dll\n");
+				goto exit_free;
+			}
+
+			// gets the raw smbios table
+			smb = get_raw_smbios_table();
+			if (smb == NULL) {
+				ret = 1;
+				printf("Can't get smbios table\n");
+				goto exit_free;
+			}
+
+			if (!(opt.flags & FLAG_QUIET)) {
+				printf("SMBIOS %u.%u present.\n", smb->SMBIOSMajorVersion,
+					smb->SMBIOSMinorVersion);
+			}
+
+			// Count smbios entries
+			num_structures = count_smbios_structures(&smb->SMBIOSTableData[0], smb->Length);
+
+			//shows the smbios information
+			dmi_table(&smb->SMBIOSTableData[0], smb->Length, num_structures,
+				(smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion, 0);
+
+			free(smb);
+			goto exit_free;
+		break;
+
+		case WIN_UNSUPORTED: //prints error and exits
+			ret = 1;
+			printf("\nDMIDECODE runs on Windows NT/2000/XP. Windows 9x/Me are not supported.\n");
+			goto exit_free;
+		break;
+
+		default:
+			/*
+			 * do nothing. Follow the code below, scans for the
+			 * SMBIOS table entry point, etc...
+			 */
+		break;
+	}
+#else
 	if ((buf = mem_chunk(0xF0000, 0x10000, opt.devmem)) == NULL)
 	{
 		ret = 1;
@@ -4955,6 +5054,7 @@ done:
 		printf("# No SMBIOS nor DMI entry point found, sorry.\n");
 
 	free(buf);
+#endif /*__WIN32__*/
 exit_free:
 	free(opt.type);
 

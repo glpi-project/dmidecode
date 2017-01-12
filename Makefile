@@ -12,7 +12,7 @@
 #   (at your option) any later version.
 #
 
-CC      = gcc
+CC      = i686-w64-mingw32-gcc
 CFLAGS  = -W -Wall -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-qual \
           -Wcast-align -Wwrite-strings -Wmissing-prototypes -Winline -Wundef
 
@@ -41,6 +41,7 @@ INSTALL_DATA    := $(INSTALL) -m 644
 INSTALL_DIR     := $(INSTALL) -m 755 -d
 INSTALL_PROGRAM := $(INSTALL) -m 755
 RM              := rm -f
+EXEEXT          := .exe
 
 # BSD make provides $MACHINE, but GNU make doesn't
 MACHINE ?= $(shell uname -m 2>/dev/null)
@@ -53,7 +54,7 @@ PROGRAMS-i686 := $(PROGRAMS-i386)
 PROGRAMS-x86_64 := biosdecode ownership vpddecode
 PROGRAMS-amd64 := $(PROGRAMS-x86_64)
 
-PROGRAMS := dmidecode $(PROGRAMS-$(MACHINE))
+PROGRAMS := dmidecode$(EXEEXT)
 
 all : $(PROGRAMS)
 
@@ -61,8 +62,8 @@ all : $(PROGRAMS)
 # Programs
 #
 
-dmidecode : dmidecode.o dmiopt.o dmioem.o util.o
-	$(CC) $(LDFLAGS) dmidecode.o dmiopt.o dmioem.o util.o -o $@
+dmidecode$(EXEEXT) : dmidecode.o dmiopt.o dmioem.o util.o winsmbios.o
+	$(CC) $(LDFLAGS) dmidecode.o dmiopt.o dmioem.o util.o winsmbios.o -o $@
 
 biosdecode : biosdecode.o util.o
 	$(CC) $(LDFLAGS) biosdecode.o util.o -o $@
@@ -100,6 +101,9 @@ vpdopt.o : vpdopt.c config.h util.h vpdopt.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 util.o : util.c types.h util.h config.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+winsmbios.o : winsmbios.c types.h winsmbios.h config.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #
