@@ -44,6 +44,8 @@
 #define MC(a,b,c,d) ( ((a)<<24) | ((b)<<16) | ((c)<<8) | (d) )
 #define RSMB() MC('R','S','M','B')
 
+#define setlinebuf(a) ( setvbuf(a, (char *) NULL, _IOLBF, (size_t) 0) )
+
 /*
  * Struct needed to get the SMBIOS table using GetSystemFirmwareTable API.
  */
