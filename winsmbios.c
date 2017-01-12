@@ -91,15 +91,13 @@ ULONG (__stdcall *RtlNtStatusToDosError)(
  * see more on:
  * http://download.microsoft.com/download/5/D/6/5D6EAF2B-7DDF-476B-93DC-7CF0072878E6/SMBIOS.doc
  *
- * API included in mingw32
- *
- * u32 (__stdcall *GetSystemFirmwareTable)(
+ */
+u32 (__stdcall *GetSystemFirmwareTableApi)(
 	u32 FirmwareTableProviderSignature,
 	u32 FirmwareTableID,
 	void *pFirmwareTableBuffer,
 	u32 BufferSize
 );
- */
 
 //--------------------------------------------------------
 //
@@ -115,14 +113,12 @@ ULONG (__stdcall *RtlNtStatusToDosError)(
 BOOLEAN LocateNtdllEntryPoints()
 {
 	switch (get_windows_platform()) {
-#if 0 // GetSystemFirmwareTable() API is still supported in mingw32, sysinfoapi.h
 		case WIN_2003_VISTA:
-			if( !(GetSystemFirmwareTable = GetProcAddress( GetModuleHandle("kernel32.dll"),
+			if( !(GetSystemFirmwareTableApi = (void *) GetProcAddress( GetModuleHandle("kernel32.dll"),
 					"GetSystemFirmwareTable" )) ) {
 				return FALSE;
 			}
 		break;
-#endif
 
 		default:
 			if( !(RtlInitUnicodeString = (void *) GetProcAddress( GetModuleHandle("ntdll.dll"),
@@ -462,7 +458,7 @@ PRawSMBIOSData get_raw_smbios_table(void) {
 	u32 size = 0;
 
 	if (get_windows_platform() == WIN_2003_VISTA) {
-		size = GetSystemFirmwareTable(RSMB(), 0, buf, size);
+		size = GetSystemFirmwareTableApi(RSMB(), 0, buf, size);
 		if (!size) {
 			PrintError("Can't get smbios table", GetLastError());
 			return NULL;
@@ -474,7 +470,7 @@ PRawSMBIOSData get_raw_smbios_table(void) {
 			return NULL;
 		}
 
-		if (!GetSystemFirmwareTable(RSMB(), 0, buf, size)) {
+		if (!GetSystemFirmwareTableApi(RSMB(), 0, buf, size)) {
 			PrintError("Failed to copy smbios table in buffer", GetLastError());
 			free(buf);
 			return NULL;

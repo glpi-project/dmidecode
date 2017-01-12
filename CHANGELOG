@@ -1,3 +1,8 @@
+2017-01-12  Guillaume Bougard <gbougard@teclib.com>
+
+	* Added back support for WinNT/Win2000 platform
+	* Re-enabled disabled options
+
 2017-01-11  Guillaume Bougard <gbougard@teclib.com>
 
 	* Added mingw32 toolchain support using old Hugo Weber patch from 2006

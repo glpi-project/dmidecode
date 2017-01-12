@@ -4513,12 +4513,8 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 	}
 }
 
-#ifdef __WIN32__
-static void dmi_table(u8 *base, u32 len, u16 num, u16 ver, u32 flags)
-#else
-static void dmi_table(const u8 *base, u32 len, u16 num, u16 ver, const char *devmem,
+static void dmi_table(off_t base, u32 len, u16 num, u16 ver, const char *devmem,
 		      u32 flags)
-#endif /* __WIN32__ */
 {
 	u8 *buf;
 
@@ -4554,8 +4550,10 @@ static void dmi_table(const u8 *base, u32 len, u16 num, u16 ver, const char *dev
 	 * see more on winsmbios.h and winsmbios.c
 	 */
 #ifdef __WIN32__
-	buf = (u8 *)base;
-#else
+	if (devmem == NULL) {
+		buf = (u8 *)((u32)base);
+	} else
+#endif /* __WIN32__ */
 	if (flags & FLAG_NO_FILE_OFFSET)
 	{
 		/*
@@ -4588,7 +4586,6 @@ static void dmi_table(const u8 *base, u32 len, u16 num, u16 ver, const char *dev
 #endif
 		return;
 	}
-#endif /* __WIN32__ */
 
 	if (opt.flags & FLAG_DUMP_BIN)
 		dmi_table_dump(buf, len);
@@ -4604,7 +4601,6 @@ static void dmi_table(const u8 *base, u32 len, u16 num, u16 ver, const char *dev
  * as this is where we will put it in the output file. We adjust the
  * DMI checksum appropriately. The SMBIOS checksum needs no adjustment.
  */
-#ifndef __WIN32__
 static void overwrite_dmi_address(u8 *buf)
 {
 	buf[0x05] += buf[0x08] + buf[0x09] + buf[0x0A] + buf[0x0B] - 32;
@@ -4751,6 +4747,7 @@ static int legacy_decode(u8 *buf, const char *devmem, u32 flags)
 /*
  * Probe for EFI interface
  */
+#ifndef __WIN32__
 #define EFI_NOT_FOUND   (-1)
 #define EFI_NO_SMBIOS   (-2)
 static int address_from_efi(off_t *address)
@@ -4800,11 +4797,12 @@ static int address_from_efi(off_t *address)
 int main(int argc, char * const argv[])
 {
 	int ret = 0;                /* Returned value */
-#ifndef __WIN32__
 	int found = 0;
 	off_t fp;
+#ifndef __WIN32__
 	size_t size;
 	int efi;
+#else
 	u8 *buf;
 
 	/*
@@ -4813,7 +4811,7 @@ int main(int argc, char * const argv[])
 	 */
 	setlinebuf(stdout);
 	setlinebuf(stderr);
-#else
+
 	/*
 	* these varibles are used only when run on windows 2003 or above.
 	* Since these versions block access to physical memory.
@@ -4860,7 +4858,6 @@ int main(int argc, char * const argv[])
 		printf("# dmidecode %s\n", VERSION);
 
 	/* Read from dump if so instructed */
-#ifndef __WIN32__
 	if (opt.flags & FLAG_FROM_DUMP)
 	{
 		if (!(opt.flags & FLAG_QUIET))
@@ -4895,6 +4892,7 @@ int main(int argc, char * const argv[])
 	 * contain one of several types of entry points, so read enough for
 	 * the largest one, then determine what type it contains.
 	 */
+#ifndef __WIN32__
 	size = 0x20;
 	if (!(opt.flags & FLAG_NO_SYSFS)
 	 && (buf = read_file(&size, SYS_ENTRY_FILE)) != NULL)
@@ -4956,11 +4954,7 @@ int main(int argc, char * const argv[])
 	goto done;
 
 memory_scan:
-#endif /*__WIN32__*/
-	if (!(opt.flags & FLAG_QUIET))
-		printf("Scanning %s for entry point.\n", opt.devmem);
-	/* Fallback to memory scan (x86, x86_64) */
-
+#else /*__WIN32__*/
 	/*
 	 * If running on windows, checks if its Windows 2003 or vista and
 	 * get the SMBIOS data without access to physical memory.
@@ -4968,7 +4962,6 @@ memory_scan:
 	 * scans for SMBIOS table entry point, just like all other OS.
 	 * If its Windows 9x or Me, print error and exits.
 	 */
-#ifdef __WIN32__
 	switch (get_windows_platform()) {
 
 		case WIN_2003_VISTA: // gets the SMBIOS table, prints values and exits
@@ -4997,8 +4990,8 @@ memory_scan:
 			num_structures = count_smbios_structures(&smb->SMBIOSTableData[0], smb->Length);
 
 			//shows the smbios information
-			dmi_table(&smb->SMBIOSTableData[0], smb->Length, num_structures,
-				(smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion, 0);
+			dmi_table((u32)&smb->SMBIOSTableData[0], smb->Length, num_structures,
+				(smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion, NULL, 0);
 
 			free(smb);
 			goto exit_free;
@@ -5017,7 +5010,11 @@ memory_scan:
 			 */
 		break;
 	}
-#else
+#endif /*__WIN32__*/
+
+	if (!(opt.flags & FLAG_QUIET))
+		printf("Scanning %s for entry point.\n", opt.devmem);
+	/* Fallback to memory scan (x86, x86_64) */
 	if ((buf = mem_chunk(0xF0000, 0x10000, opt.devmem)) == NULL)
 	{
 		ret = 1;
@@ -5054,7 +5051,6 @@ done:
 		printf("# No SMBIOS nor DMI entry point found, sorry.\n");
 
 	free(buf);
-#endif /*__WIN32__*/
 exit_free:
 	free(opt.type);
 
