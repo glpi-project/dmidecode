@@ -1,3 +1,7 @@
+macosx branch:
+ - cloned from https://github.com/cavaliercoder/dmidecode-osx.git
+ - upstream v3.1 merged
+
 ** INTRODUCTION **
 
 Dmidecode reports information about your system's hardware as described in
