@@ -13,6 +13,7 @@
 #
 
 CC      = i686-w64-mingw32-gcc
+STRIP   = i686-w64-mingw32-strip
 CFLAGS  = -W -Wall -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-qual \
           -Wcast-align -Wwrite-strings -Wmissing-prototypes -Winline -Wundef
 
@@ -111,7 +112,7 @@ winsmbios.o : winsmbios.c types.h winsmbios.h config.h
 #
 
 strip : $(PROGRAMS)
-	strip $(PROGRAMS)
+	$(STRIP) $(PROGRAMS)
 
 install : install-bin install-man install-doc
 
