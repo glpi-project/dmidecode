@@ -65,7 +65,9 @@
 #include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifndef __WIN32__
 #include <arpa/inet.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <errno.h>
@@ -3474,10 +3476,12 @@ static const char *dmi_address_type(u8 type)
  */
 static const char *dmi_address_decode(u8 *data, char *storage, u8 addrtype)
 {
+#ifndef __WIN32__
 	if (addrtype == 0x1) /* IPv4 */
 		return inet_ntop(AF_INET, data, storage, 64);
 	if (addrtype == 0x2) /* IPv6 */
 		return inet_ntop(AF_INET6, data, storage, 64);
+#endif
 	return out_of_spec;
 }
 
