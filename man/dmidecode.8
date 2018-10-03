@@ -74,7 +74,7 @@ Only display the value of the \s-1DMI\s0 string identified by \fBKEYWORD\fR.
 \fBbios-version\fR, \fBbios-release-date\fR,
 \fBsystem-manufacturer\fR, \fBsystem-product-name\fR,
 \fBsystem-version\fR, \fBsystem-serial-number\fR,
-\fBsystem-uuid\fR,
+\fBsystem-uuid\fR, \fBsystem-family\fR,
 \fBbaseboard-manufacturer\fR, \fBbaseboard-product-name\fR,
 \fBbaseboard-version\fR, \fBbaseboard-serial-number\fR,
 \fBbaseboard-asset-tag\fR, \fBchassis-manufacturer\fR,
@@ -114,6 +114,10 @@ If \fBTYPE\fR is not provided or not valid, a list of all valid keywords
 is printed and
 .B dmidecode
 exits with an error.
+.TP
+.BR "-H" ", " "--handle HANDLE"
+Only display the entry whose handle matches \fBHANDLE\fR.  \fBHANDLE\fR
+is a 16-bit integer.
 .TP
 .BR "-u" ", " "--dump"
 Do not decode the entries, dump their contents as hexadecimal instead.
