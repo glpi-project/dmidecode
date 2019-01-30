@@ -5753,7 +5753,7 @@ memory_scan:
 
 			//shows the smbios information
 			dmi_table((u32)&smb->SMBIOSTableData[0], smb->Length, num_structures,
-				(smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion, NULL, 0);
+				(smb->SMBIOSMajorVersion<<16)+(smb->SMBIOSMinorVersion<<8), NULL, 0);
 
 			free(smb);
 			goto exit_free;
