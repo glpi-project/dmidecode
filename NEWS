@@ -1,3 +1,9 @@
+Version 3.2 (update 1) (Wed Jan 30 2019)
+  - Fix smbios version tests
+  - Under windows, the UUID is now always displayed with its first 3 fields
+    with bytes swapped even for SMBIOS versions prior to 2.6. Windows systems
+    always reports bytes swapped accessing the UUID with WMI calls.
+
 Version 3.2 (Wed Sep 14 2018)
   - [COMPATIBILITY] The UUID is now displayed using lowercase letters, per
     RFC 4122 (#53569). You must ensure that any code parsing it is

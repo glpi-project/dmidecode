@@ -423,7 +423,7 @@ static void dmi_bios_characteristics_x2(u8 code, const char *prefix)
  * 7.2 System Information (Type 1)
  */
 
-static void dmi_system_uuid(const u8 *p, u16 ver)
+static void dmi_system_uuid(const u8 *p, u16 __attribute__ ((unused)) ver)
 {
 	int only0xFF = 1, only0x00 = 1;
 	int i;
@@ -453,6 +453,7 @@ static void dmi_system_uuid(const u8 *p, u16 ver)
 	 * network byte order, so I am reluctant to apply the byte-swapping
 	 * for older versions.
 	 */
+#ifndef __WIN32__
 	if (ver >= 0x0206)
 		printf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 			p[3], p[2], p[1], p[0], p[5], p[4], p[7], p[6],
@@ -461,6 +462,15 @@ static void dmi_system_uuid(const u8 *p, u16 ver)
 		printf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 			p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#else
+	/*
+	 * Just follow the SMBIOS specification under windows systems to follow
+	 * the way a wmi read would report the uuid.
+	 */
+	printf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		p[3], p[2], p[1], p[0], p[5], p[4], p[7], p[6],
+		p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#endif
 }
 
 static const char *dmi_system_wake_up_type(u8 code)
@@ -3477,7 +3487,7 @@ static const char *dmi_address_type(u8 type)
 /*
  *  DSP0270: 8.6 Protocol Address decode
  */
-static const char *dmi_address_decode(u8 *data, char *storage, u8 addrtype)
+static const char *dmi_address_decode(u8 __attribute__ ((unused)) *data, char __attribute__ ((unused)) *storage, u8 __attribute__ ((unused)) addrtype)
 {
 #ifndef __WIN32__
 	if (addrtype == 0x1) /* IPv4 */
