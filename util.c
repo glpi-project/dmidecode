@@ -159,6 +159,7 @@ out:
 	return p;
 }
 
+#ifdef USE_MMAP
 static void safe_memcpy(void *dest, const void *src, size_t n)
 {
 #ifdef USE_SLOW_MEMCPY
@@ -170,6 +171,7 @@ static void safe_memcpy(void *dest, const void *src, size_t n)
 	memcpy(dest, src, n);
 #endif
 }
+#endif
 
 /*
  * Copy a physical memory chunk into a memory buffer.
