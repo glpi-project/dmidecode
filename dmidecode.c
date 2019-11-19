@@ -67,8 +67,8 @@
 #include <unistd.h>
 #ifndef __WIN32__
 #include <arpa/inet.h>
-#endif
 #include <sys/socket.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <errno.h>
