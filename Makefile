@@ -4,7 +4,7 @@
 #   VPD Decode
 #
 #   Copyright (C) 2000-2002 Alan Cox <alan@redhat.com>
-#   Copyright (C) 2002-2015 Jean Delvare <jdelvare@suse.de>
+#   Copyright (C) 2002-2020 Jean Delvare <jdelvare@suse.de>
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -14,7 +14,12 @@
 
 CC      = i686-w64-mingw32-gcc
 STRIP   = i686-w64-mingw32-strip
-CFLAGS  = -W -Wall -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-qual \
+# Base CFLAGS can be overridden by environment
+CFLAGS ?= -O2
+# When debugging, disable -O2 and enable -g
+#CFLAGS ?= -g
+
+CFLAGS += -W -Wall -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-qual \
           -Wcast-align -Wwrite-strings -Wmissing-prototypes -Winline -Wundef
 
 # Let lseek and mmap support 64-bit wide offsets
@@ -23,12 +28,8 @@ CFLAGS += -D_FILE_OFFSET_BITS=64
 #CFLAGS += -DBIGENDIAN
 #CFLAGS += -DALIGNMENT_WORKAROUND
 
-# When debugging, disable -O2 and enable -g.
-CFLAGS += -O2
-#CFLAGS += -g
-
-# Pass linker flags here
-LDFLAGS =
+# Pass linker flags here (can be set from environment too)
+LDFLAGS ?=
 
 DESTDIR =
 prefix  = /usr/local
@@ -63,8 +64,8 @@ all : $(PROGRAMS)
 # Programs
 #
 
-dmidecode$(EXEEXT) : dmidecode.o dmiopt.o dmioem.o util.o winsmbios.o
-	$(CC) $(LDFLAGS) dmidecode.o dmiopt.o dmioem.o util.o winsmbios.o -o $@
+dmidecode$(EXEEXT) : dmidecode.o dmiopt.o dmioem.o dmioutput.o util.o winsmbios.o
+	$(CC) $(LDFLAGS) dmidecode.o dmiopt.o dmioem.o dmioutput.o util.o winsmbios.o -o $@
 
 biosdecode : biosdecode.o util.o
 	$(CC) $(LDFLAGS) biosdecode.o util.o -o $@
@@ -80,13 +81,16 @@ vpddecode : vpddecode.o vpdopt.o util.o
 #
 
 dmidecode.o : dmidecode.c version.h types.h util.h config.h dmidecode.h \
-	      dmiopt.h dmioem.h
+	      dmiopt.h dmioem.h dmioutput.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 dmiopt.o : dmiopt.c config.h types.h util.h dmidecode.h dmiopt.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-dmioem.o : dmioem.c types.h dmidecode.h dmioem.h
+dmioem.o : dmioem.c types.h dmidecode.h dmioem.h dmioutput.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+dmioutput.o : dmioutput.c types.h dmioutput.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 biosdecode.o : biosdecode.c version.h types.h util.h config.h 
