@@ -122,7 +122,7 @@ static void ascii_filter(char *bp, size_t len)
 	size_t i;
 
 	for (i = 0; i < len; i++)
-		if (bp[i] < 32 || bp[i] == 127)
+		if (bp[i] < 32 || bp[i] >= 127)
 			bp[i] = '.';
 }
 
@@ -254,9 +254,9 @@ static void dmi_dump(const struct dmi_header *h)
 			{
 				int j, l = strlen(s) + 1;
 
-				off = 0;
 				for (row = 0; row < ((l - 1) >> 4) + 1; row++)
 				{
+					off = 0;
 					for (j = 0; j < 16 && j < l - (row << 4); j++)
 						off += sprintf(raw_data + off,
 						       j ? " %02X" : "%02X",
@@ -273,7 +273,7 @@ static void dmi_dump(const struct dmi_header *h)
 }
 
 /* shift is 0 if the value is in bytes, 1 if it is in kilobytes */
-static void dmi_print_memory_size(const char *attr, u64 code, int shift)
+void dmi_print_memory_size(const char *attr, u64 code, int shift)
 {
 	unsigned long capacity;
 	u16 split[7];
@@ -1148,18 +1148,55 @@ static void dmi_processor_id(const struct dmi_header *h)
 	else if ((type >= 0x100 && type <= 0x101) /* ARM */
 	      || (type >= 0x118 && type <= 0x119)) /* ARM */
 	{
-		u32 midr = DWORD(p);
 		/*
-		 * The format of this field was not defined for ARM processors
-		 * before version 3.1.0 of the SMBIOS specification, so we
-		 * silently skip it if it reads all zeroes.
+		 * The field's format depends on the processor's support of
+		 * the SMCCC_ARCH_SOC_ID architectural call. Software can determine
+		 * the support for SoC ID by examining the Processor Characteristics field
+		 * for "Arm64 SoC ID" bit.
 		 */
-		if (midr == 0)
-			return;
-		pr_attr("Signature",
-			"Implementor 0x%02x, Variant 0x%x, Architecture %u, Part 0x%03x, Revision %u",
-			midr >> 24, (midr >> 20) & 0xF,
-			(midr >> 16) & 0xF, (midr >> 4) & 0xFFF, midr & 0xF);
+		if (h->length >= 0x28
+		 && (WORD(data + 0x26) & (1 << 9)))
+		{
+			/*
+			 * If Soc ID is supported, the first DWORD is the JEP-106 code;
+			 * the second DWORD is the SoC revision value.
+			 */
+			u32 jep106 = DWORD(p);
+			u32 soc_revision = DWORD(p + 4);
+			/*
+			 * According to SMC Calling Convention (SMCCC) v1.3 specification
+			 * (https://developer.arm.com/documentation/den0028/d/), the format
+			 * of the values returned by the SMCCC_ARCH_SOC_ID call is as follows:
+			 *
+			 * JEP-106 code for the SiP (SoC_ID_type == 0)
+			 *   Bit[31] must be zero
+			 *   Bits[30:24] JEP-106 bank index for the SiP
+			 *   Bits[23:16] JEP-106 identification code with parity bit for the SiP
+			 *   Bits[15:0] Implementation defined SoC ID
+			 *
+			 * SoC revision (SoC_ID_type == 1)
+			 *   Bit[31] must be zero
+			 *   Bits[30:0] SoC revision
+			 */
+			pr_attr("Signature",
+				"JEP-106 Bank 0x%02x Manufacturer 0x%02x, SoC ID 0x%04x, SoC Revision 0x%08x",
+				(jep106 >> 24) & 0x7F, (jep106 >> 16) & 0x7F, jep106 & 0xFFFF, soc_revision);
+		}
+		else
+		{
+			u32 midr = DWORD(p);
+			/*
+			 * The format of this field was not defined for ARM processors
+			 * before version 3.1.0 of the SMBIOS specification, so we
+			 * silently skip it if it reads all zeroes.
+			 */
+			if (midr == 0)
+				return;
+			pr_attr("Signature",
+				"Implementor 0x%02x, Variant 0x%x, Architecture %u, Part 0x%03x, Revision %u",
+				midr >> 24, (midr >> 20) & 0xF,
+				(midr >> 16) & 0xF, (midr >> 4) & 0xFFF, midr & 0xF);
+		}
 		return;
 	}
 	else if ((type >= 0x0B && type <= 0x15) /* Intel, Cyrix */
@@ -1379,10 +1416,11 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket BGA1510",
 		"Socket BGA1528",
 		"Socket LGA4189",
-		"Socket LGA1200" /* 0x3E */
+		"Socket LGA1200",
+		"Socket LGA4677" /* 0x3F */
 	};
 
-	if (code >= 0x01 && code <= 0x3E)
+	if (code >= 0x01 && code <= 0x3F)
 		return upgrade[code - 0x01];
 	return out_of_spec;
 }
@@ -1411,7 +1449,7 @@ static void dmi_processor_characteristics(const char *attr, u16 code)
 		"Execute Protection",
 		"Enhanced Virtualization",
 		"Power/Performance Control",
-		"128-bit Capable"
+		"128-bit Capable",
 		"Arm64 SoC ID" /* 9 */
 	};
 
@@ -1961,7 +1999,7 @@ static const char *dmi_slot_type(u8 code)
 		"PCI Express 3 SFF-8639 (U.2)",
 		"PCI Express Mini 52-pin with bottom-side keep-outs",
 		"PCI Express Mini 52-pin without bottom-side keep-outs",
-		"PCI Express Mini 76-pin"
+		"PCI Express Mini 76-pin",
 		"PCI Express 4 SFF-8639 (U.2)",
 		"PCI Express 5 SFF-8639 (U.2)",
 		"OCP NIC 3.0 Small Form Factor (SFF)",
@@ -2196,7 +2234,7 @@ static void dmi_slot_peers(u8 n, const u8 *data)
 
 	for (i = 1; i <= n; i++, data += 5)
 	{
-		sprintf(attr, "Peer Device %hu", i);
+		sprintf(attr, "Peer Device %hhu", (u8)i);
 		pr_attr(attr, "%04x:%02x:%02x.%x (Width %u)",
 			WORD(data), data[2], data[3] >> 3, data[3] & 0x07,
 			data[4]);
@@ -2262,7 +2300,7 @@ static void dmi_oem_strings(const struct dmi_header *h)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "String %hu", i);
+		sprintf(attr, "String %hhu", (u8)i);
 		pr_attr(attr, "%s",dmi_string(h, i));
 	}
 }
@@ -2280,7 +2318,7 @@ static void dmi_system_configuration_options(const struct dmi_header *h)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "Option %hu", i);
+		sprintf(attr, "Option %hhu", (u8)i);
 		pr_attr(attr, "%s",dmi_string(h, i));
 	}
 }
@@ -2464,10 +2502,10 @@ static void dmi_event_log_descriptors(u8 count, u8 len, const u8 *p)
 	{
 		if (len >= 0x02)
 		{
-			sprintf(attr, "Descriptor %hu", i + 1);
+			sprintf(attr, "Descriptor %d", i + 1);
 			pr_attr(attr, "%s",
 				dmi_event_log_descriptor_type(p[i * len]));
-			sprintf(attr, "Data Format %hu", i + 1);
+			sprintf(attr, "Data Format %d", i + 1);
 			pr_attr(attr, "%s",
 				dmi_event_log_descriptor_format(p[i * len + 1]));
 		}
@@ -3445,11 +3483,11 @@ static void dmi_memory_channel_devices(u8 count, const u8 *p)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "Device %hu Load", i);
+		sprintf(attr, "Device %hhu Load", (u8)i);
 		pr_attr(attr, "%u", p[3 * i]);
 		if (!(opt.flags & FLAG_QUIET))
 		{
-			sprintf(attr, "Device %hu Handle", i);
+			sprintf(attr, "Device %hhu Handle", (u8)i);
 			pr_attr(attr, "0x%04X", WORD(p + 3 * i + 1));
 		}
 	}
@@ -5206,6 +5244,51 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 	u8 *data;
 	int i = 0;
 
+	/* First pass: Save the vendor so that so that we can decode OEM types */
+	data = buf;
+	while ((i < num || !num)
+	    && data + 4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
+	{
+		u8 *next;
+		struct dmi_header h;
+
+		to_dmi_header(&h, data);
+
+		/*
+		 * If a short entry is found (less than 4 bytes), not only it
+		 * is invalid, but we cannot reliably locate the next entry.
+		 * Also stop at end-of-table marker if so instructed.
+		 */
+		if (h.length < 4 ||
+		    (h.type == 127 &&
+		     (opt.flags & (FLAG_QUIET | FLAG_STOP_AT_EOT))))
+			break;
+		i++;
+
+		/* Look for the next handle */
+		next = data + h.length;
+		while ((unsigned long)(next - buf + 1) < len
+		    && (next[0] != 0 || next[1] != 0))
+			next++;
+		next += 2;
+
+		/* Make sure the whole structure fits in the table */
+		if ((unsigned long)(next - buf) > len)
+			break;
+
+		/* Assign vendor for vendor-specific decodes later */
+		if (h.type == 1 && h.length >= 6)
+		{
+			dmi_set_vendor(_dmi_string(&h, data[0x04], 0),
+				       _dmi_string(&h, data[0x05], 0));
+			break;
+		}
+
+		data = next;
+	}
+
+	/* Second pass: Actually decode the data */
+	i = 0;
 	data = buf;
 	while ((i < num || !num)
 	    && data + 4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
@@ -5264,10 +5347,6 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 			data = next;
 			break;
 		}
-
-		/* assign vendor for vendor-specific decodes later */
-		if (h.type == 1 && h.length >= 5)
-			dmi_set_vendor(dmi_string(&h, data[0x04]));
 
 		/* Fixup a common mistake */
 		if (h.type == 34)
