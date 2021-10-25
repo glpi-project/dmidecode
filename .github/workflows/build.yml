@@ -1,9 +1,7 @@
-name: Dmidecode build
+name: Build
 
 on:
   push:
-    branches:
-      - mingw32
 
 jobs:
 
