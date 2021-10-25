@@ -22,7 +22,7 @@ jobs:
             VERSION="${GITHUB_REF#*refs/tags/}"
         else
             read A B V < version.h
-            VERSION=$( echo $V | tr -d'"' )-git${GITHUB_SHA:0:8}
+            VERSION=$( echo $V | tr -d '"' )-git${GITHUB_SHA:0:8}
         fi
         sed -ri -e 's/VERSION.*/VERSION "'$VERSION'"/' version.h
         echo "VERSION: $VERSION"
