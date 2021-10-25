@@ -1,0 +1,52 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+
+  macosx-build:
+
+    runs-on: macos-10.15
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build dmidecode
+      run: |
+        if [ -z "${GITHUB_REF##*refs/tags/*}" ]; then
+            VERSION="${GITHUB_REF#*refs/tags/}"
+        else
+            read A B V < version.h
+            VERSION=$( echo $V | tr -d '"' )-git${GITHUB_SHA:0:8}
+        fi
+        sed -i -e 's/VERSION.*/VERSION "'$VERSION'"/' version.h
+        echo "VERSION: $VERSION"
+        make
+        make strip
+        ls -l dmidecode
+        read SHA1 XXX <<<$(shasum dmidecode)
+        printf "%6s: %s\n" SHA1 $SHA1
+        shasum -a 256 dmidecode >dmidecode.sha256
+        read SHA256 XXX < dmidecode.sha256
+        printf "%6s: %s\n" SHA256 $SHA256
+      shell: bash
+    - name: Upload built artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: Dmidecode-Build
+        path: |
+          dmidecode
+          dmidecode.sha256
+    - name: Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        draft: false
+        prerelease: false
+        body: |
+          Stripped dmidecode binary to be included in GLPI Agent MacOSX packages
+        files: |
+          dmidecode
+          dmidecode.sha256
