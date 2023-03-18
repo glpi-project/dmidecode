@@ -5685,11 +5685,6 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 	 *
 	 * see more on winsmbios.h and winsmbios.c
 	 */
-#ifdef __WIN32__
-	if (devmem == NULL) {
-		buf = (u8 *)((u32)base);
-	} else
-#endif /* __WIN32__ */
 	if ((flags & FLAG_NO_FILE_OFFSET) || (opt.flags & FLAG_FROM_DUMP))
 	{
 		/*
@@ -5711,16 +5706,23 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		}
 		*len = size;
 	}
+#ifdef __WIN32__
+	else if (devmem == NULL) {
+		buf = (u8 *)((u32)base);
+	}
+#endif /* __WIN32__ */
 	else
 		buf = mem_chunk(base, *len, devmem);
 
 	if (buf == NULL)
 	{
 		fprintf(stderr, "Failed to read table, sorry.\n");
+#ifndef __WIN32__
 #ifndef USE_MMAP
 		if (!(flags & FLAG_NO_FILE_OFFSET))
 			fprintf(stderr,
 				"Try compiling dmidecode with -DUSE_MMAP.\n");
+#endif
 #endif
 	}
 
@@ -5757,12 +5759,46 @@ static void overwrite_smbios3_address(u8 *buf)
 	buf[0x17] = 0;
 }
 
+#ifdef __WIN32__
+static int smbios3_decode(u8 *buf, const char *devmem, u32 flags, PRawSMBIOSData smb)
+#else
 static int smbios3_decode(u8 *buf, const char *devmem, u32 flags)
+#endif /* __WIN32__ */
 {
 	u32 ver, len;
 	u64 offset;
 	u8 *table;
 
+#ifdef __WIN32__
+	if (smb != NULL) {
+		ver = (smb->SMBIOSMajorVersion<<16)+(smb->SMBIOSMinorVersion<<8)+smb->DmiRevision;
+		if (!(opt.flags & FLAG_QUIET))
+			pr_info("SMBIOS %u.%u.%u present.",
+				smb->SMBIOSMajorVersion, smb->SMBIOSMinorVersion, smb->DmiRevision);
+
+		offset = QWORD(buf);
+	} else {
+		/* Don't let checksum run beyond the buffer */
+		if (buf[0x06] > 0x20)
+		{
+			fprintf(stderr,
+				"Entry point length too large (%u bytes, expected %u).\n",
+				(unsigned int)buf[0x06], 0x18U);
+			return 0;
+		}
+
+		if (buf[0x06] < 0x18
+		 || !checksum(buf, buf[0x06]))
+			return 0;
+
+		ver = (buf[0x07] << 16) + (buf[0x08] << 8) + buf[0x09];
+		if (!(opt.flags & FLAG_QUIET))
+			pr_info("SMBIOS %u.%u.%u present.",
+				buf[0x07], buf[0x08], buf[0x09]);
+
+		offset = QWORD(buf + 0x10);
+	}
+#else
 	/* Don't let checksum run beyond the buffer */
 	if (buf[0x06] > 0x20)
 	{
@@ -5782,14 +5818,22 @@ static int smbios3_decode(u8 *buf, const char *devmem, u32 flags)
 			buf[0x07], buf[0x08], buf[0x09]);
 
 	offset = QWORD(buf + 0x10);
+#endif
 	if (!(flags & FLAG_NO_FILE_OFFSET) && offset.h && sizeof(off_t) < 8)
 	{
 		fprintf(stderr, "64-bit addresses not supported, sorry.\n");
 		return 0;
 	}
 
+#ifdef __WIN32__
+	if (smb != NULL)
+		len = smb->Length;
+	else
+		len = DWORD(buf + 0x0C);
+#else
 	/* Maximum length, may get trimmed */
 	len = DWORD(buf + 0x0C);
+#endif
 	table = dmi_table_get(((off_t)offset.h << 32) | offset.l, &len, 0, ver,
 			      devmem, flags | FLAG_STOP_AT_EOT);
 	if (table == NULL)
@@ -5838,12 +5882,19 @@ static void dmi_fixup_version(u16 *ver)
 	}
 }
 
+#ifdef __WIN32__
+static int smbios_decode(u8 *buf, const char *devmem, u32 flags, PRawSMBIOSData smb)
+#else
 static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
+#endif /* __WIN32__ */
 {
 	u16 ver, num;
 	u32 len;
 	u8 *table;
 
+#ifdef __WIN32__
+	ver = (smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion;
+#else
 	/* Don't let checksum run beyond the buffer */
 	if (buf[0x05] > 0x20)
 	{
@@ -5864,6 +5915,7 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 		return 0;
 
 	ver = (buf[0x06] << 8) + buf[0x07];
+#endif /* __WIN32__ */
 	if (!(opt.flags & FLAG_NO_QUIRKS))
 		dmi_fixup_version(&ver);
 	if (!(opt.flags & FLAG_QUIET))
@@ -5871,9 +5923,16 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 			ver >> 8, ver & 0xFF);
 
 	/* Maximum length, may get trimmed */
+#ifdef __WIN32__
+	len = smb->Length;
+	// Count smbios entries
+	num = count_smbios_structures(&smb->SMBIOSTableData[0], len);
+	table = dmi_table_get((u32)buf, &len, num, (ver << 8)+smb->DmiRevision,
+#else
 	len = WORD(buf + 0x16);
 	num = WORD(buf + 0x1C);
 	table = dmi_table_get(DWORD(buf + 0x18), &len, num, ver << 8,
+#endif /* __WIN32__ */
 			      devmem, flags);
 	if (table == NULL)
 		return 1;
@@ -6022,7 +6081,15 @@ int main(int argc, char * const argv[])
 	int ret = 0;                /* Returned value */
 	int found = 0;
 	off_t fp;
-#ifndef __WIN32__
+	/*
+	* this varible is used only when run on windows 2003 or above.
+	* Since these versions block access to physical memory.
+	* Windows NT, 2000 and XP still accessing physical memory througth
+	* mem_chunck
+	*/
+#ifdef __WIN32__
+	PRawSMBIOSData smb = NULL;
+#else
 	size_t size;
 	int efi;
 #endif /* __WIN32__ */
@@ -6034,17 +6101,6 @@ int main(int argc, char * const argv[])
 	 */
 	setlinebuf(stdout);
 	setlinebuf(stderr);
-
-	/*
-	* these varibles are used only when run on windows 2003 or above.
-	* Since these versions block access to physical memory.
-	* Windows NT, 2000 and XP still accessing physical memory througth
-	* mem_chunck
-	*/
-#ifdef __WIN32__
-	int num_structures = 0;
-	PRawSMBIOSData smb = NULL;
-#endif /* __WIN32__ */
 
 	if (sizeof(u8) != 1 || sizeof(u16) != 2 || sizeof(u32) != 4 || '\0' != 0)
 	{
@@ -6096,12 +6152,20 @@ int main(int argc, char * const argv[])
 
 		if (memcmp(buf, "_SM3_", 5) == 0)
 		{
+#ifdef __WIN32__
+			if (smbios3_decode(buf, opt.dumpfile, 0, smb))
+#else
 			if (smbios3_decode(buf, opt.dumpfile, 0))
+#endif /*__WIN32__*/
 				found++;
 		}
 		else if (memcmp(buf, "_SM_", 4) == 0)
 		{
+#ifdef __WIN32__
+			if (smbios_decode(buf, opt.dumpfile, 0, smb))
+#else
 			if (smbios_decode(buf, opt.dumpfile, 0))
+#endif /*__WIN32__*/
 				found++;
 		}
 		else if (memcmp(buf, "_DMI_", 5) == 0)
@@ -6206,17 +6270,16 @@ memory_scan:
 				goto exit_free;
 			}
 
-			if (!(opt.flags & FLAG_QUIET)) {
-				printf("SMBIOS %u.%u present.\n", smb->SMBIOSMajorVersion,
-					smb->SMBIOSMinorVersion);
+			// Shows the smbios information
+			buf = &smb->SMBIOSTableData[0];
+			if (smb->SMBIOSMajorVersion >= 3) {
+				found = smbios3_decode(buf, NULL, 0, smb);
+			} else {
+				found = smbios_decode(buf, NULL, 0, smb);
 			}
 
-			// Count smbios entries
-			num_structures = count_smbios_structures(&smb->SMBIOSTableData[0], smb->Length);
-
-			//shows the smbios information
-			dmi_table((u32)&smb->SMBIOSTableData[0], smb->Length, num_structures,
-				(smb->SMBIOSMajorVersion<<16)+(smb->SMBIOSMinorVersion<<8), NULL, 0);
+			if (!found && !(opt.flags & FLAG_QUIET))
+				pr_comment("No SMBIOS nor DMI entry point found, sorry.");
 
 			free(smb);
 			goto exit_free;
@@ -6252,7 +6315,11 @@ memory_scan:
 	{
 		if (memcmp(buf + fp, "_SM3_", 5) == 0)
 		{
+#ifdef __WIN32__
+			if (smbios3_decode(buf + fp, opt.devmem, 0, smb))
+#else
 			if (smbios3_decode(buf + fp, opt.devmem, 0))
+#endif /*__WIN32__*/
 			{
 				found++;
 				goto done;
@@ -6265,7 +6332,11 @@ memory_scan:
 	{
 		if (memcmp(buf + fp, "_SM_", 4) == 0 && fp <= 0xFFE0)
 		{
+#ifdef __WIN32__
+			if (smbios_decode(buf + fp, opt.devmem, 0, smb))
+#else
 			if (smbios_decode(buf + fp, opt.devmem, 0))
+#endif /*__WIN32__*/
 			{
 				found++;
 				goto done;

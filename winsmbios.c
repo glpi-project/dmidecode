@@ -357,9 +357,9 @@ void *mem_chunk_win(off_t base, size_t len) {
  *
  * Hugo Weber address@hidden
  */
-int count_smbios_structures(u8 *buff, u32 len) {
+u16 count_smbios_structures(u8 *buff, u32 len) {
 	// Counts the strutures
-	int icount = 0;
+	u16 icount = 0;
 	// Points to the actual address in the buff that's been checked
 	u8 *offset = (u8 *)buff;
 	// Header of the struct being read to get the length to increase the offset

@@ -60,7 +60,7 @@ typedef struct _RawSMBIOSData {
 
 int get_windows_platform(void);
 RawSMBIOSData *get_raw_smbios_table(void);
-int count_smbios_structures(u8 *buff, u32 len);
+u16 count_smbios_structures(u8 *buff, u32 len);
 void *mem_chunk_win(off_t base, size_t len);
 BOOLEAN LocateNtdllEntryPoints(void);
 

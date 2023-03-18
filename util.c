@@ -182,7 +182,6 @@ void *mem_chunk_openfile(off_t base, size_t len, const char *devmem);
 void *mem_chunk(off_t base, size_t len, const char *devmem)
 {
 	if ( devmem != NULL && strcmp(devmem,"memory") ) {
-		fprintf(stderr, "Can't decode from file %s\n", devmem);
 		return mem_chunk_openfile(base, len, devmem);
 	}
 	return mem_chunk_win(base, len);
@@ -193,7 +192,9 @@ void *mem_chunk_openfile(off_t base, size_t len, const char *devmem)
 void *mem_chunk(off_t base, size_t len, const char *devmem)
 #endif /* __WIN32__ */
 {
+#ifndef __WIN32__
 	struct stat statbuf;
+#endif /* __WIN32__ */
 	void *p = NULL;
 	int fd;
 #ifdef USE_MMAP
@@ -205,11 +206,13 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
 	 * Safety check: if running as root, devmem is expected to be a
 	 * character device file.
 	 */
+#ifdef __WIN32__
+	if ((fd = open(devmem, O_RDONLY)) == -1)
+#else
 	if ((fd = open(devmem, O_RDONLY)) == -1
-#ifndef __WIN32__
 	 || fstat(fd, &statbuf) == -1
 	 || (geteuid() == 0 && !S_ISCHR(statbuf.st_mode)))
-#endif
+#endif /* __WIN32__ */
 	{
 		fprintf(stderr, "Can't read memory from %s\n", devmem);
 		if (fd == -1)
