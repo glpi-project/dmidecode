@@ -5440,7 +5440,11 @@ static int dmi_table_dump(const u8 *ep, u32 ep_len, const u8 *table,
 	int fd;
 	FILE *f;
 
+#ifdef __WIN32__
+	fd = open(opt.dumpfile, O_WRONLY|O_CREAT|O_EXCL|O_BINARY, 0666);
+#else
 	fd = open(opt.dumpfile, O_WRONLY|O_CREAT|O_EXCL, 0666);
+#endif
 	if (fd == -1)
 	{
 		fprintf(stderr, "%s: ", opt.dumpfile);
@@ -5675,16 +5679,6 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		pr_sep();
 	}
 
-	/*
-	 * if devmem is NULL then base has the SMBIOS Table address
-	 * already allocated and not the physical memory address that
-	 * needs to be mapped.
-	 * This change was made to support Windows 2003 that blocks
-	 * access to physical memory but returns the SMBIOS Table
-	 * througth GetSystemFirmwareTable API.
-	 *
-	 * see more on winsmbios.h and winsmbios.c
-	 */
 	if ((flags & FLAG_NO_FILE_OFFSET) || (opt.flags & FLAG_FROM_DUMP))
 	{
 		/*
@@ -5706,6 +5700,16 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		}
 		*len = size;
 	}
+	/*
+	 * if devmem is NULL then base has the SMBIOS Table address
+	 * already allocated and not the physical memory address that
+	 * needs to be mapped.
+	 * This change was made to support Windows 2003 that blocks
+	 * access to physical memory but returns the SMBIOS Table
+	 * througth GetSystemFirmwareTable API.
+	 *
+	 * see more on winsmbios.h and winsmbios.c
+	 */
 #ifdef __WIN32__
 	else if (devmem == NULL) {
 		buf = (u8 *)((u32)base);
@@ -5737,7 +5741,7 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
  */
 static void overwrite_dmi_address(u8 *buf)
 {
-	buf[0x05] += buf[0x08] + buf[0x09] + buf[0x0A] + buf[0x0B] - 32;
+	buf[0x04] += buf[0x08] + buf[0x09] + buf[0x0A] + buf[0x0B] - 32;
 	buf[0x08] = 32;
 	buf[0x09] = 0;
 	buf[0x0A] = 0;
@@ -5843,7 +5847,28 @@ static int smbios3_decode(u8 *buf, const char *devmem, u32 flags)
 	{
 		u8 crafted[32];
 
+#ifdef __WIN32__
+		u8 sum = 0;
+		size_t a;
+
+		// Craft header from RawSMBIOSData structure
+		memcpy(crafted, "_SM3_", 5);
+		crafted[0x06] = 0x18;
+		crafted[0x07] = smb->SMBIOSMajorVersion;
+		crafted[0x08] = smb->SMBIOSMinorVersion;
+		crafted[0x09] = smb->DmiRevision;
+		crafted[0x0A] = 1;
+		crafted[0x0B] = 0;
+		memcpy(crafted+0x0C, &smb->Length, 4);
+		// Compute checksum
+		for (a = 0; a < 0x18; a++)
+			sum += crafted[a];
+		crafted[0x05] -= sum;
+		for (; a < 0x20; a++)
+			crafted[a] = 0;
+#else
 		memcpy(crafted, buf, 32);
+#endif /* __WIN32__ */
 		overwrite_smbios3_address(crafted);
 
 		dmi_table_dump(crafted, crafted[0x06], table, len);
@@ -5893,8 +5918,10 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 	u8 *table;
 
 #ifdef __WIN32__
-	ver = (smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion;
-#else
+	if (smb != NULL) {
+		ver = (smb->SMBIOSMajorVersion<<8)+smb->SMBIOSMinorVersion;
+	} else {
+#endif
 	/* Don't let checksum run beyond the buffer */
 	if (buf[0x05] > 0x20)
 	{
@@ -5915,6 +5942,8 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 		return 0;
 
 	ver = (buf[0x06] << 8) + buf[0x07];
+#ifdef __WIN32__
+	}
 #endif /* __WIN32__ */
 	if (!(opt.flags & FLAG_NO_QUIRKS))
 		dmi_fixup_version(&ver);
@@ -5924,16 +5953,24 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 
 	/* Maximum length, may get trimmed */
 #ifdef __WIN32__
-	len = smb->Length;
-	// Count smbios entries
-	num = count_smbios_structures(&smb->SMBIOSTableData[0], len);
-	table = dmi_table_get((u32)buf, &len, num, (ver << 8)+smb->DmiRevision,
+	if (smb != NULL) {
+		len = smb->Length;
+		// Count smbios entries
+		num = count_smbios_structures(&smb->SMBIOSTableData[0], len);
+		table = dmi_table_get((u32)buf, &len, num, ver << 8,
+			      devmem, flags);
+	} else {
+		len = WORD(buf + 0x16);
+		num = WORD(buf + 0x1C);
+		table = dmi_table_get(DWORD(buf + 0x18), &len, num, ver << 8,
+			      devmem, flags);
+	}
 #else
 	len = WORD(buf + 0x16);
 	num = WORD(buf + 0x1C);
 	table = dmi_table_get(DWORD(buf + 0x18), &len, num, ver << 8,
-#endif /* __WIN32__ */
 			      devmem, flags);
+#endif /* __WIN32__ */
 	if (table == NULL)
 		return 1;
 
@@ -5941,8 +5978,34 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 	{
 		u8 crafted[32];
 
+#ifdef __WIN32__
+		u8 sum = 0;
+		size_t a;
+
+		for (a = 0; a < 0x20; a++)
+			crafted[a] = 0;
+		// Craft header from RawSMBIOSData structure
+		memcpy(crafted, "_SM_", 4);
+		crafted[0x05] = 32;
+		crafted[0x06] = smb->SMBIOSMajorVersion;
+		crafted[0x07] = smb->SMBIOSMinorVersion;
+		overwrite_dmi_address(crafted + 0x10);
+		memcpy(crafted+0x10, "_DMI_", 5);
+		crafted[0x16] = len & 0xFF;
+		crafted[0x17] = len >> 8;
+		crafted[0x1C] = num & 0xFF;
+		crafted[0x1D] = num >> 8;
+		// Compute checksums
+		for (a = 0x10; a < 0x1F; a++)
+			sum += crafted[a];
+		crafted[0x15] -= sum;
+		for (a = 0, sum = 0; a < 0x20; a++)
+			sum += crafted[a];
+		crafted[0x04] -= sum;
+#else
 		memcpy(crafted, buf, 32);
 		overwrite_dmi_address(crafted + 0x10);
+#endif /* __WIN32__ */
 
 		dmi_table_dump(crafted, crafted[0x05], table, len);
 	}
@@ -6273,7 +6336,7 @@ memory_scan:
 			// Shows the smbios information
 			buf = &smb->SMBIOSTableData[0];
 			if (smb->SMBIOSMajorVersion >= 3) {
-				found = smbios3_decode(buf, NULL, 0, smb);
+				found = smbios3_decode((u8 *)&buf, NULL, 0, smb);
 			} else {
 				found = smbios_decode(buf, NULL, 0, smb);
 			}

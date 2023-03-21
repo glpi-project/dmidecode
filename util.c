@@ -109,7 +109,11 @@ void *read_file(off_t base, size_t *max_len, const char *filename)
 	 * Don't print error message on missing file, as we will try to read
 	 * files that may or may not be present.
 	 */
+#ifdef __WIN32__
+	if ((fd = open(filename, O_RDONLY|O_BINARY)) == -1)
+#else
 	if ((fd = open(filename, O_RDONLY)) == -1)
+#endif
 	{
 		if (errno != ENOENT)
 			perror(filename);
