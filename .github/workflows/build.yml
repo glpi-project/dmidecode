@@ -26,8 +26,8 @@ jobs:
         fi
         sed -i -e 's/VERSION.*/VERSION "'$VERSION'"/' version.h
         echo "VERSION: $VERSION"
-        make
-        make strip
+        make dmidecode
+        make strip PROGRAMS=dmidecode
         ls -l dmidecode
         read SHA1 XXX <<<$(shasum dmidecode)
         printf "%6s: %s\n" SHA1 $SHA1
