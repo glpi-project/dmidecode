@@ -6,6 +6,7 @@ on:
       - '**.c'
       - '**.h'
       - 'Makefile'
+      - '.github/workflows/build.yml'
 
 jobs:
 
