@@ -198,13 +198,14 @@ static void dmi_hp_240_attr(u64 defined, u64 set)
 	};
 	unsigned int i;
 
-	pr_attr("Attributes Defined/Set", NULL);
+	pr_list_start("Attributes Defined/Set", NULL);
 	for (i = 0; i < ARRAY_SIZE(attributes); i++)
 	{
 		if (!(defined.l & (1UL << i)))
 			continue;
-		pr_subattr(attributes[i], "%s", set.l & (1UL << i) ? "Yes" : "No");
+		pr_list_item("%s: %s", attributes[i], set.l & (1UL << i) ? "Yes" : "No");
 	}
+	pr_list_end();
 }
 
 static void dmi_hp_203_assoc_hndl(const char *fname, u16 num)
@@ -243,7 +244,7 @@ static void dmi_hp_203_bayenc(const char *fname, u8 num)
 
 static void dmi_hp_203_devtyp(const char *fname, unsigned int code)
 {
-	static const char *str = "Reserved";
+	const char *str = "Reserved";
 	static const char *type[] = {
 		"Unknown", /* 0x00 */
 		"Reserved",
@@ -273,7 +274,7 @@ static void dmi_hp_203_devtyp(const char *fname, unsigned int code)
 
 static void dmi_hp_203_devloc(const char *fname, unsigned int code)
 {
-	static const char *str = "Reserved";
+	const char *str = "Reserved";
 	static const char *location[] = {
 		"Unknown", /* 0x00 */
 		"Embedded",
@@ -282,7 +283,7 @@ static void dmi_hp_203_devloc(const char *fname, unsigned int code)
 		"Rear USB Port",
 		"Internal USB",
 		"Internal SD Card",
-		"Internal Virutal USB (Embedded NAND)",
+		"Internal Virtual USB (Embedded NAND)",
 		"Embedded SATA Port",
 		"Embedded Smart Array",
 		"PCI Slot",
@@ -299,6 +300,371 @@ static void dmi_hp_203_devloc(const char *fname, unsigned int code)
 	pr_attr(fname, "%s", str);
 }
 
+static void dmi_hp_216_fw_type(u16 code)
+{
+	const char *str = "Reserved";
+	static const char * const type[] = {
+		"Reserved", /* 0x00 */
+		"System ROM",
+		"Redundant System ROM",
+		"System ROM Bootblock",
+		"Power Management Controller Firmware",
+		"Power Management Controller Firmware Bootloader",
+		"SL Chassis Firmware",
+		"SL Chassis Firmware Bootloader",
+		"Hardware PAL/CPLD",
+		"SPS Firmware (ME Firmware)",
+		"SL Chassis PAL/CPLD",
+		"Compatibility Support Module (CSM)",
+		"APML",
+		"Smart Storage Battery (Megacell) Firmware",
+		"Trusted Module (TPM or TCM) Firmware Version",
+		"NVMe Backplane Firmware",
+		"Intelligent Provisioning",
+		"SPI Descriptor Version",
+		"Innovation Engine Firmware (IE Firmware)",
+		"UMB Backplane Firmware",
+		"Reserved", /* 0x14 */
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved", /* 0x1F */
+		"EL Chassis Abstraction Revision",
+		"EL Chassis Firmware Revision",
+		"EL Chassis PAL/CPLD",
+		"EL Cartride Abstraction Revision",
+		"Reserved", /* 0x24 */
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved",
+		"Reserved", /* 0x2F */
+		"Embedded Video Controller",
+		"PCIe Riser Programmable Logic Device",
+		"PCIe cards that contain a CPLD",
+		"Intel NVMe VROC",
+		"Intel SATA VROC",
+		"Intel SPS Firmware",
+		"Secondary System Programmable Logic Device",
+		"CPU MEZZ Programmable Logic Device", /* 0x37 */
+		"Intel Artic Sound -M Accelerator Models Firmware",
+		"Ampere System Control Processor (SCP – PMPro+SMPro)",
+		"Intel CFR information", /* 0x3A */
+	};
+
+	if (code < ARRAY_SIZE(type))
+		str = type[code];
+
+	pr_attr("Firmware Type", "%s", str);
+}
+
+static void dmi_hp_216_version(u8 format, u8 *data)
+{
+	const char * const name = "Version Data";
+	const char * const reserved = "Reserved";
+	int gen;
+
+	gen = dmi_hpegen(dmi_product);
+
+	switch (format) {
+	case 0:
+		pr_attr(name, "No Version Data");
+		break;
+	case 1:
+		pr_attr(name, "%c.%d.%d", data[0] & (1 << 7) ? 'B' : 'R',
+					  data[0] & 0x7, data[1] & 0x7);
+		break;
+	case 2:
+		pr_attr(name, "%d.%d", data[0] >> 4, data[0] & 0x0f);
+		break;
+	case 4:
+		pr_attr(name, "%d.%d.%d", data[0] >> 4, data[0] & 0x0f, data[1] & 0x7f);
+		break;
+	case 5:
+		if (gen == G9) {
+			pr_attr(name, "%d.%d.%d", data[0] >> 4, data[0] & 0x0f, data[1] & 0x7f);
+		} else if (gen == G10 || gen == G10P) {
+			pr_attr(name, "%d.%d.%d.%d", data[1] & 0x0f, data[3] & 0x0f,
+						     data[5] & 0x0f, data[6] & 0x0f);
+		} else {
+			pr_attr(name, "%s", reserved);
+		}
+		break;
+	case 6:
+		pr_attr(name, "%d.%d", data[1], data[0]);
+		break;
+	case 7:
+		pr_attr(name, "v%d.%.2d (%.2d/%.2d/%d)", data[0], data[1],
+							 data[2], data[3], WORD(data + 4));
+		break;
+	case 8:
+		pr_attr(name, "%d.%d", WORD(data + 4), WORD(data));
+		break;
+	case 9:
+		pr_attr(name, "%d.%d.%d", data[0], data[1], WORD(data + 2));
+		break;
+	case 10:
+		pr_attr(name, "%d.%d.%d Build %d", data[0], data[1], data[2], data[3]);
+		break;
+	case 11:
+		pr_attr(name, "%d.%d %d", WORD(data + 2), WORD(data), DWORD(data + 4));
+		break;
+	case 12:
+		pr_attr(name, "%d.%d.%d.%d", WORD(data), WORD(data + 2),
+					     WORD(data + 4), WORD(data + 6));
+		break;
+	case 13:
+		pr_attr(name, "%d", data[0]);
+		break;
+	case 14:
+		pr_attr(name, "%d.%d.%d.%d", data[0], data[1], data[2], data[3]);
+		break;
+	case 15:
+		pr_attr(name, "%d.%d.%d.%d (%.2d/%.2d/%d)",
+				WORD(data), WORD(data + 2), WORD(data + 4), WORD(data + 6),
+				data[8], data[9], WORD(data + 10));
+		break;
+	case 16:
+		pr_attr(name, "%c%c%c%c.%d%d",
+				data[0], data[1], data[2], data[3], data[4], data[5]);
+		break;
+	case 17:
+		pr_attr(name, "%08X", DWORD(data));
+		break;
+	case 18:
+		pr_attr(name, "%d.%2d", data[0], data[1]);
+		break;
+	case 3: /* fall through */
+	default:
+		pr_attr(name, "%s", reserved);
+	}
+}
+
+static int dmi_hp_224_status(u8 code)
+{
+	static const char * const present[] = {
+		"Not Present", /* 0x00 */
+		"Present/Enabled",
+		"Present/Disabled",
+		"Reserved" /* 0x03 */
+	};
+
+	pr_attr("Status", "%s", present[code & 0x03]);
+	if ((code & 0x03) == 0x00)
+		return 0;
+	pr_attr("Option ROM Measuring", "%s", (code & (1 << 2)) ? "Yes" : "No");
+	pr_attr("Hidden", "%s", (code & (1 << 3)) ? "Yes" : "No");
+	return 1;
+}
+
+static void dmi_hp_224_ex_status(u8 status, u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const disable_reason[] = {
+		"Not Specified", /* 0x00 */
+		"User Disabled",
+		"Error Condition",
+		"Reserved"	/* 0x03 */
+	};
+	static const char * const error_condition[] = {
+		"Not Specified", /* 0x00 */
+		"Self-Test",     /* 0x01 */
+	};
+	if ((status & 0x03) == 0x02)
+		pr_attr("Disable Reason", "%s", disable_reason[code & 0x03]);
+	if ((code & 0x03) == 0x02) {
+		u8 error = (code >> 2) & 0x0f;
+		if (error < ARRAY_SIZE(error_condition))
+			str = error_condition[error];
+		pr_attr("Error Condition", "%s", str);
+	}
+}
+
+static void dmi_hp_224_module_type(u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const type[] = {
+		"Not Specified", /* 0x00 */
+		"TPM 1.2",
+		"TPM 2.0",
+		"Intel PTT fTPM" /* 0x03 */
+	};
+	if ((code & 0x0f) < ARRAY_SIZE(type))
+		str = type[code & 0x0f];
+	pr_attr("Type", "%s", str);
+	pr_attr("Standard Algorithm Supported", "%s", (code & (1 << 4)) ? "Yes" : "No");
+	pr_attr("Chinese Algorithm Supported", "%s", (code & (1 << 5)) ? "Yes" : "No");
+}
+
+static void dmi_hp_224_module_attr(u8 code)
+{
+	static const char * const phys_attr[] = {
+		"Not Specified", /* 0x00 */
+		"Pluggable and Optional",
+		"Pluggable but Standard",
+		"Soldered Down on System Board"  /* 0x03 */
+	};
+	static const char * const fips_attr[] = {
+		"Not Specified", /* 0x00 */
+		"Not FIPS Certified",
+		"FIPS Certified",
+		"Reserved"  /* 0x03 */
+	};
+	pr_attr("Trusted Module Attributes", "%s", phys_attr[code & 0x3]);
+	pr_attr("FIPS Certification", "%s", fips_attr[((code >> 2) & 0x03)]);
+}
+
+static void dmi_hp_224_chipid(u16 code)
+{
+	const char *str = "Reserved";
+	static const char * const chipid[] = {
+		"None", /* 0x00 */
+		"STMicroGen10 TPM",
+		"Intel firmware TPM (PTT)",
+		"Nationz TPM",
+		"STMicroGen10 Plus TPM",
+		"STMicroGen11 TPM", /* 0x05 */
+	};
+	if ((code & 0xff) < ARRAY_SIZE(chipid))
+		str = chipid[code & 0xff];
+	pr_attr("Chip Identifier", "%s", str);
+}
+
+static void dmi_hp_230_method_bus_seg_addr(u8 code, u8 bus_seg, u8 addr)
+{
+	const char *str = "Reserved";
+	static const char * const method[] = {
+		"Not Available", /* 0x00 */
+		"IPMI I2C",
+		"iLO",
+		"Chassis Manager", /* 0x03 */
+	};
+	if (code < ARRAY_SIZE(method))
+		str = method[code];
+	pr_attr("Access Method", "%s", str);
+	if (code == 0 || code >= ARRAY_SIZE(method))
+		return;
+	if (bus_seg != 0xFF)
+	{
+		if (code == 2)
+			pr_attr("I2C Segment Number", "%d", bus_seg);
+		else
+			pr_attr("I2C Bus Number", "%d", bus_seg);
+	}
+	if (addr != 0xFF)
+		pr_attr("I2C Address", "0x%02x", addr >> 1);
+}
+
+static void dmi_hp_238_loc(const char *fname, unsigned int code)
+{
+	const char *str = "Reserved";
+	static const char *location[] = {
+		"Internal", /* 0x00 */
+		"Front of Server",
+		"Rear of Server",
+		"Embedded internal SD Card",
+		"iLO USB",
+		"USB Hub for NAND Controller",
+		"Reserved",
+		"Debug Port", /* 0x07 */
+	};
+
+	if (code < ARRAY_SIZE(location))
+		str = location[code];
+
+	pr_attr(fname, "%s", str);
+}
+
+static void dmi_hp_238_flags(const char *fname, unsigned int code)
+{
+	const char *str = "Reserved";
+	static const char *flags[] = {
+		"Not Shared", /* 0x00 */
+		"Shared with physical switch",
+		"Shared with automatic control", /* 0x02 */
+	};
+
+	if (code < ARRAY_SIZE(flags))
+		str = flags[code];
+
+	pr_attr(fname, "%s", str);
+}
+
+static void dmi_hp_238_speed(const char *fname, unsigned int code)
+{
+	const char *str = "Reserved";
+	static const char *speed[] = {
+		"Reserved", /* 0x00 */
+		"USB 1.1 Full Speed",
+		"USB 2.0 High Speed",
+		"USB 3.0 Super Speed" /* 0x03 */
+	};
+
+	if (code < ARRAY_SIZE(speed))
+		str = speed[code];
+
+	pr_attr(fname, "%s", str);
+}
+
+static void dmi_hp_242_hdd_type(u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const type[] = {
+		"Undetermined", /* 0x00 */
+		"NVMe SSD",
+		"SATA",
+		"SAS",
+		"SATA SSD",
+		"NVMe Manged by VROC/VMD", /* 0x05 */
+	};
+	if (code < ARRAY_SIZE(type))
+		str = type[code];
+
+	pr_attr("Hard Drive Type", "%s", str);
+}
+
+static void dmi_hp_242_form_factor(u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const form[] = {
+		"Reserved", /* 0x00 */
+		"Reserved",
+		"3.5\" form factor",
+		"2.5\" form factor",
+		"1.8\" form factor",
+		"Less than 1.8\" form factor",
+		"mSATA",
+		"M.2",
+		"MicroSSD",
+		"CFast", /* 0x09 */
+	};
+	if (code < ARRAY_SIZE(form))
+		str = form[code];
+
+	pr_attr("Form Factor", "%s", str);
+}
+
+static void dmi_hp_242_speed(const char *attr, u16 speed)
+{
+	if (speed)
+		pr_attr(attr, "%hu Gbit/s", speed);
+	else
+		pr_attr(attr, "%s", "Unknown");
+}
+
 static int dmi_decode_hp(const struct dmi_header *h)
 {
 	u8 *data = h->data;
@@ -313,6 +679,58 @@ static int dmi_decode_hp(const struct dmi_header *h)
 
 	switch (h->type)
 	{
+		case 194:
+			/*
+			 * Vendor Specific: Super IO Enable/Disable Features
+			 *
+			 * Offset |  Name      | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xC2, Super IO Enable/Disable Indicator
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Dev Status | BYTE  | Device Status
+			 */
+			pr_handle_name("%s ProLiant Super IO Enable/Disable Indicator", company);
+			if (h->length < 0x05) break;
+			feat = data[0x04];
+			pr_attr("Serial Port A", "%s", feat & (1 << 0) ? "Enabled" : "Disabled");
+			pr_attr("Serial Port B", "%s", feat & (1 << 1) ? "Enabled" : "Disabled");
+			pr_attr("Parallel Port", "%s", feat & (1 << 2) ? "Enabled" : "Disabled");
+			pr_attr("Floppy Disk Port", "%s", feat & (1 << 3) ? "Enabled" : "Disabled");
+			pr_attr("Virtual Serial Port", "%s", feat & (1 << 4) ? "Enabled" : "Disabled");
+			break;
+
+		case 199:
+			/*
+			 * Vendor Specific: CPU Microcode Patch
+			 *
+			 * Offset |  Name      | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xC7, CPU Microcode Patch
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Patch Info | Varies| { <DWORD: ID, DWORD Date, DWORD CPUID> ...}
+			 */
+			if (gen < G9) return 0;
+			pr_handle_name("%s ProLiant CPU Microcode Patch Support Info", company);
+
+			for (ptr = 0x4; ptr + 12 <= h->length; ptr += 12) {
+				u32 cpuid = DWORD(data + ptr + 2 * 4);
+				u32 date;
+
+				/* AMD omits BaseFamily. Reconstruction valid on family >= 15. */
+				if (cpuid_type == cpuid_x86_amd)
+					cpuid = ((cpuid & 0xfff00) << 8) | 0x0f00 | (cpuid & 0xff);
+
+				dmi_print_cpuid(pr_attr, "CPU ID", cpuid_type, (u8 *) &cpuid);
+
+				date = DWORD(data + ptr + 4);
+				pr_subattr("Date", "%04x-%02x-%02x",
+					date & 0xffff, (date >> 24) & 0xff, (date >> 16) & 0xff);
+				pr_subattr("Patch", "0x%X", DWORD(data + ptr));
+			}
+			break;
+
 		case 203:
 			/*
 			 * Vendor Specific: HP Device Correlation Record
@@ -349,9 +767,9 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			 *  0x26  | Bus Number   | BYTE  | PCI Device Bus Number
 			 *  0x27  | Func Number  | BTYE  | PCI Device and Function Number
 			 */
-			if (gen < G9) break;
+			if (gen < G9) return 0;
+			pr_handle_name("%s Device Correlation Record", company);
 			if (h->length < 0x1F) break;
-			pr_handle_name("%s HP Device Correlation Record", company);
 			dmi_hp_203_assoc_hndl("Associated Device Record", WORD(data + 0x04));
 			dmi_hp_203_assoc_hndl("Associated SMBus Record",  WORD(data + 0x06));
 			if (WORD(data + 0x08) == 0xffff && WORD(data + 0x0A) == 0xffff &&
@@ -478,6 +896,51 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			}
 			break;
 
+		case 216:
+			/*
+			 * Vendor Specific: Version Indicator Record
+			 *
+			 * This record is used to allow determining Firmware and CPLD revisions for
+			 * components in the system. The goal of this record is to provide a
+			 * flexible method to communicate to software and firmware the revisions
+			 * of these components. This record replaces much of the functionality of
+			 * Record Type 193. OEM SMBIOS Record Type 193 was not scaling well with
+			 * the large number of potential CPLD devices, power management controllers,
+			 * etc. This record is flexible such that each instance of Type 216
+			 * defines one firmware component. This record also includes the string
+			 * name for which software should refer to the component. The record
+			 * includes both data bytes to indicate the revision and a string value. A
+			 * firmware component can implement either or both. If both are supported,
+			 * it allows easy display of the revision, but prevents the need for
+			 * software/firmware to parse strings when doing comparisons on revisions.
+			 * As there is one Type 216 Record per firmware component, the Handle for
+			 * the Record can be used to tie firmware components with other OEM SMBIOS
+			 * Records in the future if needed (similar to how SMBIOS Type 17 is tied
+			 * to other Record Types related to DIMMs)
+			 *
+			 * Offset |  Name      | Width  | Description
+			 * ------------------------------------------
+			 *  0x00  | Type       |  BYTE  | 0xD8, Version Indicator Record
+			 *  0x01  | Length     |  BYTE  | Length of structure
+			 *  0x02  | Handle     |  WORD  | Unique handle
+			 *  0x04  | FW Type    |  WORD  | Type of Firmware
+			 *  0x06  | FW Name    | STRING | Name of Firmware
+			 *  0x07  | FW Version | STRING | Firmware Version
+			 *  0x08  | Data Format|  BYTE  | Format of the Version Data
+			 *  0x09  |Version Data|12 BYTES| Version Data in Format from field 0x08
+			 *  0x15  | Unique ID  |  WORD  | Unique ID for Firmware flash
+			 */
+			if (gen < G8) return 0;
+			pr_handle_name("%s Version Indicator", company);
+			if (h->length < 23) break;
+			dmi_hp_216_fw_type(WORD(data + 0x04));
+			pr_attr("Firmware Name String", "%s", dmi_string(h, data[0x06]));
+			pr_attr("Firmware Version String", "%s", dmi_string(h, data[0x07]));
+			dmi_hp_216_version(data[0x08], data + 0x09);
+			if (WORD(data + 0x15))
+				pr_attr("Unique ID", "0x%04x", WORD(data + 0x15));
+			break;
+
 		case 219:
 			/*
 			 * Vendor Specific: HPE ProLiant Information
@@ -494,6 +957,64 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			pr_attr("Misc. Features", "0x%08x", feat);
 			pr_subattr("iCRU", "%s", feat & 0x0001 ? "Yes" : "No");
 			pr_subattr("UEFI", "%s", feat & 0x1400 ? "Yes" : "No");
+			break;
+
+		case 224:
+			/*
+			 * Vendor Specific: Trusted Module (TPM or TCM) Status
+			 *
+			 * Offset |  Name  | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type   | BYTE  | 0xE0, Trusted Module (TPM or TCM) Status
+			 *  0x01  | Length | BYTE  | Length of structure
+			 *  0x02  | Handle | WORD  | Unique handle
+			 *  0x04  | Status | BYTE  | Status Flag Byte
+			 *  0x05  | Ex Stat| BYTE  | TPM Extended Status
+			 *  0x06  | Type   | BYTE  | Trusted Module Type
+			 *  0x07  | Attrib | BYTE  | Trusted Module Attributes
+			 *  0x08  | Handle | WORD  | Handle to map to Type 216
+			 *  0x0A  | Chip ID| WORD  | Chip Identifier Values
+			 */
+			pr_handle_name("%s Trusted Module (TPM or TCM) Status", company);
+			if (h->length < 0x05) break;
+			if (!dmi_hp_224_status(data[0x04]))
+				break;
+			if (h->length < 0x0a) break;
+			dmi_hp_224_ex_status(data[0x04], data[0x05]);
+			dmi_hp_224_module_type(data[0x06]);
+			dmi_hp_224_module_attr(data[0x07]);
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x8));
+			if (h->length < 0x0c) break;
+			dmi_hp_224_chipid(WORD(data + 0x0a));
+			break;
+
+		case 230:
+			/*
+			 * Vendor Specific: Power Supply Information OEM SMBIOS Record
+			 *
+			 * This record is used to communicate additional Power Supply Information
+			 * beyond the Industry Standard System Power Supply (Type 39) Record.
+			 *
+			 * Offset| Name        | Width | Description
+			 * -----------------------------------------
+			 *  0x00 | Type        | BYTE  | 0xE6, Power Supply Information Indicator
+			 *  0x01 | Length      | BYTE  | Length of structure
+			 *  0x02 | Handle      | WORD  | Unique handle
+			 *  0x04 | Assoc Handle| WORD  | Associated Handle (Type 39)
+			 *  0x06 | Manufacturer| STRING| Actual third party manufacturer
+			 *  0x07 | Revision    | STRING| Power Supply Revision Level
+			 *  0x08 | FRU Access  | BYTE  | Power Supply FRU Access Method
+			 *  0x09 | I2C Bus Num | BYTE  | I2C Bus #. Value based upon context
+			 *  0x0A | I2C Address | BYTE  | I2C Address
+			 */
+			pr_handle_name("%s Power Supply Information", company);
+			if (h->length < 0x0B) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x4));
+			pr_attr("Manufacturer", "%s", dmi_string(h, data[0x06]));
+			pr_attr("Revision", "%s", dmi_string(h, data[0x07]));
+			dmi_hp_230_method_bus_seg_addr(data[0x08], data[0x09], data[0x0A]);
 			break;
 
 		case 233:
@@ -560,6 +1081,71 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			}
 			break;
 
+		case 237:
+			/*
+			 * Vendor Specific: HPE DIMM Vendor Part Number Information
+			 *
+			 * Offset |  Name      | Width | Description
+			 * ---------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xED, DIMM Vendor Part Number information record
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Hand Assoc | WORD  | Handle to map to Type 17
+			 *  0x06  | Manufacture|STRING | DIMM Manufacturer
+			 *  0x07  | Part Number|STRING | DIMM Manufacturer's Part Number
+			 *  0x08  | Serial Num |STRING | DIMM Vendor Serial Number
+			 *  0x09  | Spare Part |STRING | DIMM Spare Part Number
+			 */
+			if (gen < G9) return 0;
+			pr_handle_name("%s DIMM Vendor Information", company);
+			if (h->length < 0x08) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x4));
+			pr_attr("DIMM Manufacturer", "%s", dmi_string(h, data[0x06]));
+			pr_attr("DIMM Manufacturer Part Number", "%s", dmi_string(h, data[0x07]));
+			if (h->length < 0x09) break;
+			pr_attr("DIMM Vendor Serial Number", "%s", dmi_string(h, data[0x08]));
+			if (h->length < 0x0A) break;
+			pr_attr("DIMM Spare Part Number", "%s", dmi_string(h, data[0x09]));
+			break;
+
+		case 238:
+			/*
+			 * Vendor Specific: HPE USB Port Connector Correlation Record
+			 *
+			 * Offset |  Name      | Width | Description
+			 * ---------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xEE, HP Device Correlation Record
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Hand Assoc | WORD  | Handle to map to Type 8
+			 *  0x06  | Parent Bus | BYTE  | PCI Bus number of USB controller of this port
+			 *  0x07  | Par Dev/Fun| BYTE  | PCI Dev/Fun of USB Controller of this port
+			 *  0x08  | Location   | BYTE  | Enumerated value of location of USB port
+			 *  0x09  | Flags      | WORD  | USB Shared Management Port
+			 *  0x0B  | Port Inst  | BYTE  | Instance number for this type of USB port
+			 *  0x0C  | Parent Hub | BYTE  | Instance number of internal Hub
+			 *  0x0D  | Port Speed | BYTE  | Enumerated value of speed configured by BIOS
+			 *  0x0E  | Device Path| STRING| UEFI Device Path of USB endpoint
+			 */
+			if (gen < G9) return 0;
+			pr_handle_name("%s Proliant USB Port Connector Correlation Record", company);
+			if (h->length < 0x0F) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x4));
+			pr_attr("PCI Device", "%02x:%02x.%x", data[0x6],
+				data[0x7] >> 3, data[0x7] & 0x7);
+			dmi_hp_238_loc("Location", data[0x8]);
+			dmi_hp_238_flags("Management Port", WORD(data + 0x9));
+			pr_attr("Port Instance", "%d", data[0xB]);
+			if (data[0xC] != 0xFE)
+				pr_attr("Parent Hub Port Instance", "%d", data[0xC]);
+			else
+				pr_attr("Parent Hub Port Instance", "N/A");
+			dmi_hp_238_speed("Port Speed Capability", data[0xD]);
+			pr_attr("Device Path", "%s", dmi_string(h, data[0xE]));
+			break;
+
 		case 240:
 			/*
 			 * Vendor Specific: HPE Proliant Inventory Record
@@ -602,6 +1188,82 @@ static int dmi_decode_hp(const struct dmi_header *h)
 				pr_attr("Lowest Supported Version", "Not Available");
 			break;
 
+		case 242:
+			/*
+			 * Vendor Specific: HPE Hard Drive Inventory Record
+			 *
+			 * This record provides a mechanism for software to gather information for
+			 * NVMe and SATA drives that are directly attached to the system. This
+			 * record does not contain drive information for drives attached to a HBA
+			 * (i.e. a SmartArray controller). This record will only contain information
+			 * for a hard drive detected by the BIOS during POST and does not
+			 * comprehend a hot plug event after the system has booted.
+			 *
+			 * Offset |  Name      | Width | Description
+			 * ---------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xF2, HPE Hard Drive Inventory Record
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Hndl Assoc | WORD  | Handle to map to Type 203
+			 *  0x06  | HDD Type   | BYTE  | Hard drive type
+			 *  0x07  | HDD Uniq ID| QWORD | SATA-> WWID.  NVMe -> IEEE Ext Uniq ID.
+			 *  0x0F  | Capacity   | DWORD | Drive Capacity in Mbytes
+			 *  0x13  | Hours      | 16BYTE| Number of poweron hours
+			 *  0x23  | Reserved   | BYTE  | Reserved
+			 *  0x24  | Power      | BTYE  | Wattage
+			 *  0x25  | Form Factor| BYTE  | HDD Form Factor
+			 *  0x26  | Health     | BYTE  | Hard Drive Health Status
+			 *  0x27  | Serial Num | STRING| NVMe/SATA Serial Number
+			 *  0x28  | Model Num  | STRING| NVMe/SATA Model Number
+			 *  0x29  | FW Rev     | STRING| Firmware revision
+			 *  0x2A  | Location   | STRING| Drive location
+			 *  0x2B  | Crypt Stat | BYTE  | Drive encryption status from BIOS
+			 *  0x2C  | Capacity   | QWORD | Hard Drive capacity in bytes
+			 *  0x34  | Block Size | DWORD | Logical Block Size in bytes
+			 *  0x38  | Rot Speed  | WORD  | Nominal Rotational Speed (RPM)
+			 *  0x3A  | Neg Speed  | WORD  | Current negotiated bus speed
+			 *  0x3C  | Cap Speed  | WORD  | Fastest Capable Bus Speed of drive
+			 */
+			if (gen < G10) return 0;
+			pr_handle_name("%s ProLiant Hard Drive Inventory Record", company);
+			if (h->length < 0x2C) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x4));
+			dmi_hp_242_hdd_type(data[0x06]);
+			pr_attr("ID", "%llx", QWORD(data + 0x07));
+			if (h->length < 0x3E)
+				pr_attr("Capacity", "%u MB", DWORD(data + 0x0F));
+			else
+				dmi_print_memory_size("Capacity", QWORD(data + 0x2C), 0);
+			/* NB: Poweron low QWORD good for 2,104,351,365,926,255 years */
+			pr_attr("Poweron", "%ld hours", QWORD(data + 0x13));
+			if (data[0x24])
+				pr_attr("Power Wattage", "%hhu W", data[0x24]);
+			else
+				pr_attr("Power Wattage", "%s", "Unknown");
+			dmi_hp_242_form_factor(data[0x25]);
+			feat = data[0x26];
+			pr_attr("Health Status", "%s", (feat == 0x00) ? "OK" :
+							(feat == 0x01) ? "Warning" :
+							(feat == 0x02) ? "Critical" :
+							(feat == 0xFF) ? "Unknown" : "Reserved");
+			pr_attr("Serial Number", dmi_string(h, data[0x27]));
+			pr_attr("Model Number", dmi_string(h, data[0x28]));
+			pr_attr("Firmware Revision", dmi_string(h, data[0x29]));
+			pr_attr("Location", dmi_string(h, data[0x2A]));
+			feat = data[0x2B];
+			pr_attr("Encryption Status", "%s", (feat == 0) ? "Not Encrypted" :
+							(feat == 1) ? "Encrypted" :
+							(feat == 2) ? "Unknown" :
+							(feat == 3) ? "Not Supported" : "Reserved");
+			if (h->length < 0x3E) break;
+			pr_attr("Block Size", "%u bytes", DWORD(data + 0x34));
+			/* Rotational Speed: 0 -> Not Reported, 1 -> N/A (SSD) */
+			if (data[0x38] > 1)
+				pr_attr("Rotational Speed", "%hhu RPM", data[0x38]);
+			dmi_hp_242_speed("Negotiated Speed", WORD(data + 0x3A));
+			dmi_hp_242_speed("Capable Speed", WORD(data + 0x3C));
+			break;
 		default:
 			return 0;
 	}
