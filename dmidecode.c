@@ -5695,7 +5695,7 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		if (service == MACH_PORT_NULL)
 		{
 			fprintf(stderr, "AppleSMBIOS service is unreachable, sorry.\n");
-			return;
+			return NULL;
 		}
 
 		if (kIOReturnSuccess != IORegistryEntryCreateCFProperties(service,
@@ -5704,7 +5704,7 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 										  kNilOptions))
 		{
 			fprintf(stderr, "No data in AppleSMBIOS IOService, sorry.\n");
-			return;
+			return NULL;
 		}
 		
 		if (!CFDictionaryGetValueIfPresent(properties,
@@ -5712,17 +5712,17 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 									  (const void **)&dataRef))
 		{
 			fprintf(stderr, "SMBIOS property data is unreachable, sorry.\n");
-			return;
+			return NULL;
 		}
 
-		len = CFDataGetLength(dataRef);
-		if((buf = malloc(sizeof(u8) * len)) == NULL)
+		*len = CFDataGetLength(dataRef);
+		if ((buf = malloc(sizeof(u8) * (*len))) == NULL)
 		{
 			perror("malloc");
-			return;
+			return NULL;
 		}
 
-		CFDataGetBytes(dataRef, CFRangeMake(0, len), (UInt8*)buf);
+		CFDataGetBytes(dataRef, CFRangeMake(0, *len), (UInt8*)buf);
 		
 		if (NULL != dataRef)
 			CFRelease(dataRef);
@@ -5743,7 +5743,7 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 #endif
 
 	// read tables from file devmem file
-	if (!(flags & FLAG_READ_FROM_API) && (buf = mem_chunk(base, len, devmem)) == NULL)
+	if (!(flags & FLAG_READ_FROM_API) && (buf = mem_chunk(base, *len, devmem)) == NULL)
 	{
 		fprintf(stderr, "Failed to read table, sorry.\n");
 #ifndef USE_MMAP
