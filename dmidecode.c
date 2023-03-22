@@ -5677,8 +5677,10 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		}
 		*len = size;
 	}
+#ifndef __APPLE__
 	else
 		buf = mem_chunk(base, *len, devmem);
+#endif
 
 #ifdef USE_API_CALLS
 	// read tables from API call
