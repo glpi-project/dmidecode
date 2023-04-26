@@ -5764,9 +5764,9 @@ static void overwrite_smbios3_address(u8 *buf)
 }
 
 #ifdef __WIN32__
-static int smbios3_decode(u8 *buf, const char *devmem, u32 flags, PRawSMBIOSData smb)
+static int smbios3_decode(u8 *buf, size_t buf_len, const char *devmem, u32 flags, PRawSMBIOSData smb)
 #else
-static int smbios3_decode(u8 *buf, const char *devmem, u32 flags)
+static int smbios3_decode(u8 *buf, size_t buf_len, const char *devmem, u32 flags)
 #endif /* __WIN32__ */
 {
 	u32 ver, len;
@@ -5804,7 +5804,7 @@ static int smbios3_decode(u8 *buf, const char *devmem, u32 flags)
 	}
 #else
 	/* Don't let checksum run beyond the buffer */
-	if (buf[0x06] > 0x20)
+	if (buf[0x06] > buf_len)
 	{
 		fprintf(stderr,
 			"Entry point length too large (%u bytes, expected %u).\n",
@@ -5908,9 +5908,9 @@ static void dmi_fixup_version(u16 *ver)
 }
 
 #ifdef __WIN32__
-static int smbios_decode(u8 *buf, const char *devmem, u32 flags, PRawSMBIOSData smb)
+static int smbios_decode(u8 *buf, size_t buf_len, const char *devmem, u32 flags, PRawSMBIOSData smb)
 #else
-static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
+static int smbios_decode(u8 *buf, size_t buf_len, const char *devmem, u32 flags)
 #endif /* __WIN32__ */
 {
 	u16 ver, num;
@@ -5923,7 +5923,7 @@ static int smbios_decode(u8 *buf, const char *devmem, u32 flags)
 	} else {
 #endif
 	/* Don't let checksum run beyond the buffer */
-	if (buf[0x05] > 0x20)
+	if (buf[0x05] > buf_len)
 	{
 		fprintf(stderr,
 			"Entry point length too large (%u bytes, expected %u).\n",
@@ -6224,18 +6224,18 @@ int main(int argc, char * const argv[])
 		if (memcmp(buf, "_SM3_", 5) == 0)
 		{
 #ifdef __WIN32__
-			if (smbios3_decode(buf, opt.dumpfile, 0, smb))
+			if (smbios3_decode(buf, size, opt.dumpfile, 0, smb))
 #else
-			if (smbios3_decode(buf, opt.dumpfile, 0))
+			if (smbios3_decode(buf, size, opt.dumpfile, 0))
 #endif /*__WIN32__*/
 				found++;
 		}
 		else if (memcmp(buf, "_SM_", 4) == 0)
 		{
 #ifdef __WIN32__
-			if (smbios_decode(buf, opt.dumpfile, 0, smb))
+			if (smbios_decode(buf, size, opt.dumpfile, 0, smb))
 #else
-			if (smbios_decode(buf, opt.dumpfile, 0))
+			if (smbios_decode(buf, size, opt.dumpfile, 0))
 #endif /*__WIN32__*/
 				found++;
 		}
@@ -6260,12 +6260,12 @@ int main(int argc, char * const argv[])
 			pr_info("Getting SMBIOS data from sysfs.");
 		if (size >= 24 && memcmp(buf, "_SM3_", 5) == 0)
 		{
-			if (smbios3_decode(buf, SYS_TABLE_FILE, FLAG_NO_FILE_OFFSET))
+			if (smbios3_decode(buf, size, SYS_TABLE_FILE, FLAG_NO_FILE_OFFSET))
 				found++;
 		}
 		else if (size >= 31 && memcmp(buf, "_SM_", 4) == 0)
 		{
-			if (smbios_decode(buf, SYS_TABLE_FILE, FLAG_NO_FILE_OFFSET))
+			if (smbios_decode(buf, size, SYS_TABLE_FILE, FLAG_NO_FILE_OFFSET))
 				found++;
 		}
 		else if (size >= 15 && memcmp(buf, "_DMI_", 5) == 0)
@@ -6302,12 +6302,12 @@ int main(int argc, char * const argv[])
 
 	if (memcmp(buf, "_SM3_", 5) == 0)
 	{
-		if (smbios3_decode(buf, opt.devmem, 0))
+		if (smbios3_decode(buf, 0x20, opt.devmem, 0))
 			found++;
 	}
 	else if (memcmp(buf, "_SM_", 4) == 0)
 	{
-		if (smbios_decode(buf, opt.devmem, 0))
+		if (smbios_decode(buf, 0x20, opt.devmem, 0))
 			found++;
 	}
 	goto done;
@@ -6343,9 +6343,9 @@ memory_scan:
 			// Shows the smbios information
 			buf = &smb->SMBIOSTableData[0];
 			if (smb->SMBIOSMajorVersion >= 3) {
-				found = smbios3_decode((u8 *)&buf, NULL, 0, smb);
+				found = smbios3_decode((u8 *)&buf, 0x20, NULL, 0, smb);
 			} else {
-				found = smbios_decode(buf, NULL, 0, smb);
+				found = smbios_decode(buf, 0x20, NULL, 0, smb);
 			}
 
 			if (!found && !(opt.flags & FLAG_QUIET))
@@ -6386,9 +6386,9 @@ memory_scan:
 		if (memcmp(buf + fp, "_SM3_", 5) == 0)
 		{
 #ifdef __WIN32__
-			if (smbios3_decode(buf + fp, opt.devmem, 0, smb))
+			if (smbios3_decode(buf + fp, 0x20, opt.devmem, 0, smb))
 #else
-			if (smbios3_decode(buf + fp, opt.devmem, 0))
+			if (smbios3_decode(buf + fp, 0x20, opt.devmem, 0))
 #endif /*__WIN32__*/
 			{
 				found++;
@@ -6403,9 +6403,9 @@ memory_scan:
 		if (memcmp(buf + fp, "_SM_", 4) == 0 && fp <= 0xFFE0)
 		{
 #ifdef __WIN32__
-			if (smbios_decode(buf + fp, opt.devmem, 0, smb))
+			if (smbios_decode(buf + fp, 0x20, opt.devmem, 0, smb))
 #else
-			if (smbios_decode(buf + fp, opt.devmem, 0))
+			if (smbios_decode(buf + fp, 0x20, opt.devmem, 0))
 #endif /*__WIN32__*/
 			{
 				found++;
