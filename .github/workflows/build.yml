@@ -90,7 +90,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/') && env.VT_API_KEY
       run: |
         let TRY=20
-        while curl -s --request GET --url https://www.virustotal.com/api/v3/files/${{ steps.build.outputs.sha256 }} --header 'x-apikey: $VT_API_KEY'" >vt.json
+        while curl -s --request GET --url https://www.virustotal.com/api/v3/files/${{ steps.build.outputs.sha256 }} --header "x-apikey: $VT_API_KEY" >vt.json
         do
             ERRCODE=$(jq .error.code vt.json 2>&1)
             if [ "$ERRCODE" == "null" ]; then
