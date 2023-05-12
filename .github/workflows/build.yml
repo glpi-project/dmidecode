@@ -87,9 +87,35 @@ jobs:
         files: |
           dmidecode.exe
     - name: Request first VirusTotal Analysis report
-      if: startsWith(github.ref, 'refs/tags/')
+      if: startsWith(github.ref, 'refs/tags/') && env.VT_API_KEY
       run: |
-        curl -s --request GET --url https://www.virustotal.com/api/v3/files/${{ steps.build.outputs.sha256 }} --header "x-apikey: $VT_API_KEY"
+        let TRY=20
+        while curl -s --request GET --url https://www.virustotal.com/api/v3/files/${{ steps.build.outputs.sha256 }} --header 'x-apikey: $VT_API_KEY'" >vt.json
+        do
+            ERRCODE=$(jq .error.code vt.json 2>&1)
+            if [ "$ERRCODE" == "null" ]; then
+                if [ "$(jq .data.attributes.last_analysis_results.VBA32 vt.json)" != "null" ]; then
+                    echo "$(date): Current analysis stats:"
+                    jq .data.attributes.last_analysis_stats vt.json
+                    break
+                else
+                    echo "$(date): Analysis is running"
+                fi
+            else
+                echo "$(date): $ERRCODE"
+                if [ "$TRY" -lt 15 -a "$ERRCODE" != '"NotFoundError"' ]; then
+                    echo "$(date): Failing to access VT reporting"
+                    break
+                fi
+            fi
+            rm -f vt.json
+            if (( --TRY < 0 )); then
+                echo "$(date): Nothing to report"
+                break
+            fi
+            sleep 15
+        done
+        exit 0
       shell: bash
       env:
         VT_API_KEY: ${{ secrets.VT_API_KEY }}
