@@ -6,6 +6,7 @@ on:
       - '**.c'
       - '**.h'
       - 'Makefile'
+      - '.github/workflows/build.yml'
 
 jobs:
 
@@ -19,24 +20,51 @@ jobs:
       run: |
         sudo apt -y install gcc-mingw-w64
     - name: Build dmidecode
+      id: build
       run: |
         if [ -z "${GITHUB_REF##*refs/tags/*}" ]; then
             VERSION="${GITHUB_REF#*refs/tags/}"
         else
             read A B V < version.h
             VERSION=$( echo $V | tr -d '"' )-git${GITHUB_SHA:0:8}
+            # Disable code-signing as not releasing
+            unset CODESIGN_COMMAND
         fi
         sed -ri -e 's/VERSION.*/VERSION "'$VERSION'"/' version.h
         echo "VERSION: $VERSION"
         make
         make strip
+        if [ -n "$CODESIGN_COMMAND" ]; then
+            read SHA1 XXX <<<$(sha1sum dmidecode.exe)
+            printf "Before signing %6s: %s\n" SHA1 $SHA1
+            read SHA256 XXX <<<$(sha256sum dmidecode.exe)
+            printf "Before signing %6s: %s\n" SHA256 $SHA256
+            umask 0077
+            mkdir ~/.ssh
+            echo "$CODESIGN_KNOWNHOST"            > ~/.ssh/known_hosts
+            echo "$CODESIGN_PRIVATE"              > private.key
+            umask 0002
+            cat dmidecode.exe | \
+                $CODESIGN_COMMAND codesign dmidecode.exe > dmidecode-signed.exe
+            if [ ! -s dmidecode-signed.exe ]; then
+                echo "Failed to get signed version of dmidecode.exe" >&2
+                exit 1
+            fi
+            mv -vf dmidecode-signed.exe dmidecode.exe
+            rm -f ~/.ssh/known_hosts private.key
+        fi
         ls -l dmidecode.exe
         read SHA1 XXX <<<$(sha1sum dmidecode.exe)
         printf "%6s: %s\n" SHA1 $SHA1
         sha256sum dmidecode.exe >dmidecode.exe.sha256
         read SHA256 XXX < dmidecode.exe.sha256
         printf "%6s: %s\n" SHA256 $SHA256
+        echo "sha256=$SHA256" >>$GITHUB_OUTPUT
       shell: bash
+      env:
+        CODESIGN_KNOWNHOST: ${{ secrets.CODESIGN_KNOWNHOST }}
+        CODESIGN_COMMAND: ${{ secrets.CODESIGN_COMMAND }}
+        CODESIGN_PRIVATE: ${{ secrets.CODESIGN_PRIVATE }}
     - name: Upload built artifacts
       uses: actions/upload-artifact@v3
       with:
@@ -53,7 +81,18 @@ jobs:
         draft: false
         prerelease: false
         body: |
-          Stripped dmidecode binary to be included in GLPI Agent Windows MSI packages
+          # Description
+          Stripped dmidecode binary to be included in GLPI Agent MSI packages for Windows
+          # Footprint
+          SHA256: ${{ needs.build.outputs.sha256 }}
         files: |
           dmidecode.exe
           dmidecode.exe.sha256
+    - name: VirusTotal Scan
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: crazy-max/ghaction-virustotal@v3
+      with:
+        vt_api_key: ${{ secrets.VT_API_KEY }}
+        update_release_body: true
+        files: |
+          dmidecode.exe
