@@ -86,21 +86,21 @@ jobs:
         vt_api_key: ${{ secrets.VT_API_KEY }}
         files: |
           dmidecode.exe
-    - name: Extract VT URL
-      id: get-vt-url
+    - name: Request first VirusTotal Analysis report
       if: startsWith(github.ref, 'refs/tags/')
       run: |
-        URL="${{ steps.vt-scan.outputs.analysis }}"
-        echo "dmidecode=${URL#dmidecode.exe=}" >>$GITHUB_OUTPUT
+        curl -s --request GET --url https://www.virustotal.com/api/v3/files/${{ steps.build.outputs.sha256 }} --header "x-apikey: $VT_API_KEY"
       shell: bash
+      env:
+        VT_API_KEY: ${{ secrets.VT_API_KEY }}
     - name: Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        draft: contains(steps.build.outputs.vtag, 'test')
-        prerelease: contains(steps.build.outputs.vtag, 'beta')
+        draft: ${{ contains(steps.build.outputs.vtag, 'test') }}
+        prerelease: ${{ contains(steps.build.outputs.vtag, 'beta') }}
         name: dmidecode v${{ steps.build.outputs.version }} for windows
         body: |
           # Description
@@ -110,7 +110,7 @@ jobs:
           # Footprint
           SHA256: [${{ steps.build.outputs.sha256 }}](https://github.com/glpi-project/dmidecode/releases/download/${{ github.ref_name }}/dmidecode.exe.sha256)
           # VirusTotal report
-          See: [dmidecode.exe VT analysis](${{ steps.get-vt-url.outputs.dmidecode }})
+          See: [dmidecode.exe VT analysis](https://www.virustotal.com/gui/file/${{ steps.build.outputs.sha256 }})
         files: |
           dmidecode.exe
           dmidecode.exe.sha256
