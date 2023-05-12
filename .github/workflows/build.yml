@@ -88,6 +88,7 @@ jobs:
           dmidecode.exe
     - name: Extract VT URL
       id: get-vt-url
+      if: startsWith(github.ref, 'refs/tags/')
       run: |
         URL="${{ steps.vt-scan.outputs.analysis }}"
         echo "dmidecode=${URL#dmidecode.exe=}" >>$GITHUB_OUTPUT
