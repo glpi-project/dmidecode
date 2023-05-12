@@ -24,6 +24,10 @@ jobs:
       run: |
         if [ -z "${GITHUB_REF##*refs/tags/*}" ]; then
             VERSION="${GITHUB_REF#*refs/tags/}"
+            # Also remove any postfix tag from the version
+            VTAG="${VERSION#*-}"
+            [ "$VTAG" == "$VERSION" ] && unset VTAG
+            VERSION="${VERSION%-*}"
         else
             read A B V < version.h
             VERSION=$( echo $V | tr -d '"' )-git${GITHUB_SHA:0:8}
@@ -59,7 +63,9 @@ jobs:
         sha256sum dmidecode.exe >dmidecode.exe.sha256
         read SHA256 XXX < dmidecode.exe.sha256
         printf "%6s: %s\n" SHA256 $SHA256
-        echo "sha256=$SHA256" >>$GITHUB_OUTPUT
+        echo "version=$VERSION" >>$GITHUB_OUTPUT
+        echo "vtag=$VTAG"       >>$GITHUB_OUTPUT
+        echo "sha256=$SHA256"   >>$GITHUB_OUTPUT
       shell: bash
       env:
         CODESIGN_KNOWNHOST: ${{ secrets.CODESIGN_KNOWNHOST }}
@@ -72,27 +78,38 @@ jobs:
         path: |
           dmidecode.exe
           dmidecode.exe.sha256
+    - name: VirusTotal Scan
+      id: vt-scan
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: crazy-max/ghaction-virustotal@v3
+      with:
+        vt_api_key: ${{ secrets.VT_API_KEY }}
+        files: |
+          dmidecode.exe
+    - name: Extract VT URL
+      id: get-vt-url
+      run: |
+        URL="${{ steps.vt-scan.outputs.analysis }}"
+        echo "dmidecode=${URL#dmidecode.exe=}" >>$GITHUB_OUTPUT
+      shell: bash
     - name: Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        draft: false
-        prerelease: false
+        draft: contains(steps.build.outputs.vtag, 'test')
+        prerelease: contains(steps.build.outputs.vtag, 'beta')
+        name: dmidecode v${{ steps.build.outputs.version }} for windows
         body: |
           # Description
           Stripped dmidecode binary to be included in GLPI Agent MSI packages for Windows
+          # Download
+          [dmidecode.exe](https://github.com/glpi-project/dmidecode/releases/download/${{ github.ref_name }}/dmidecode.exe)
           # Footprint
-          SHA256: ${{ needs.build.outputs.sha256 }}
+          SHA256: [${{ steps.build.outputs.sha256 }}](https://github.com/glpi-project/dmidecode/releases/download/${{ github.ref_name }}/dmidecode.exe.sha256)
+          # VirusTotal report
+          See: [dmidecode.exe VT analysis](${{ steps.get-vt-url.outputs.dmidecode }})
         files: |
           dmidecode.exe
           dmidecode.exe.sha256
-    - name: VirusTotal Scan
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: crazy-max/ghaction-virustotal@v3
-      with:
-        vt_api_key: ${{ secrets.VT_API_KEY }}
-        update_release_body: true
-        files: |
-          dmidecode.exe
