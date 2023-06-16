@@ -38,7 +38,7 @@ jobs:
         echo "VERSION: $VERSION"
         make
         make strip
-        if [ -n "$CODESIGN_COMMAND" ]; then
+        if [ -n "$CODESIGN_COMMAND" -a "${{ vars.WIN32_SIGNING }}" != "no" ]; then
             read SHA1 XXX <<<$(sha1sum dmidecode.exe)
             printf "Before signing %6s: %s\n" SHA1 $SHA1
             read SHA256 XXX <<<$(sha256sum dmidecode.exe)
