@@ -6332,6 +6332,12 @@ int main(int argc, char * const argv[])
 		goto exit_free;
 	}
 
+	if (opt.flags & FLAG_LIST)
+	{
+		/* Already handled in parse_command_line() */
+		goto exit_free;
+	}
+
 	if (opt.flags & FLAG_HELP)
 	{
 		print_help();
