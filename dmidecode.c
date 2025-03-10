@@ -5971,7 +5971,7 @@ static int smbios3_decode(u8 *buf, size_t buf_len, const char *devmem, u32 flags
 		offset = QWORD(buf);
 	} else {
 		/* Don't let checksum run beyond the buffer */
-		if (buf[0x06] > 0x20)
+		if (buf[0x06] > buf_len)
 		{
 			fprintf(stderr,
 				"Entry point length too large (%u bytes, expected %u).\n",
@@ -6341,10 +6341,10 @@ int main(int argc, char * const argv[])
 	* Windows NT, 2000 and XP still accessing physical memory througth
 	* mem_chunck
 	*/
+	size_t size;
 #ifdef __WIN32__
 	PRawSMBIOSData smb = NULL;
 #else
-	size_t size;
 	int efi;
 #endif /* __WIN32__ */
 	u8 *buf = NULL;
