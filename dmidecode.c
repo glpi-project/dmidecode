@@ -1032,6 +1032,15 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 		{ 0x26F, "Multi-Core Loongson 3B 5xxx" },
 		{ 0x270, "Multi-Core Loongson 3C 5xxx" },
 		{ 0x271, "Multi-Core Loongson 3D 5xxx" },
+	
+		{ 0x300, "Intel® Core™ 3" },
+		{ 0x301, "Intel® Core™ 5" },
+		{ 0x302, "Intel® Core™ 7" },
+		{ 0x303, "Intel® Core™ 9" },
+		{ 0x304, "Intel® Core™ Ultra 3" },
+		{ 0x305, "Intel® Core™ Ultra 5" },
+		{ 0x306, "Intel® Core™ Ultra 7" },
+		{ 0x307, "Intel® Core™ Ultra 9" },
 	};
 	/*
 	 * Note to developers: when adding entries to this list, check if
