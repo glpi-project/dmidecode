@@ -1495,13 +1495,13 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket LGA4710",
 		"Socket LGA7529", /* 0x50 */
 	
-		"Socket LGA1964", /* 0x51 */
-		"Socket LGA1792", /* 0x52 */
-		"Socket LGA2049", /* 0x53 */
-		"Socket LGA2551", /* 0x54 */
+		"Socket BGA1964", /* 0x51 */
+		"Socket BGA1792", /* 0x52 */
+		"Socket BGA2049", /* 0x53 */
+		"Socket BGA2551", /* 0x54 */
 		"Socket LGA1851", /* 0x55 */
-		"Socket LGA2114", /* 0x56 */
-		"Socket LGA2833"  /* 0x57 */
+		"Socket BGA2114", /* 0x56 */
+		"Socket BGA2833"  /* 0x57 */
 	};
 
 	if (code >= 0x01 && code <= 0x57)
