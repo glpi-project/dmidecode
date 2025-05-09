@@ -1501,7 +1501,7 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket LGA2551", /* 0x54 */
 		"Socket LGA1851", /* 0x55 */
 		"Socket LGA2114", /* 0x56 */
-		"Socket LGA1851"  /* 0x57 */
+		"Socket LGA2833"  /* 0x57 */
 	};
 
 	if (code >= 0x01 && code <= 0x57)
