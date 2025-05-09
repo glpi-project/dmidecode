@@ -1493,10 +1493,18 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket BGA1190",
 		"Socket BGA4129",
 		"Socket LGA4710",
-		"Socket LGA7529" /* 0x50 */
+		"Socket LGA7529", /* 0x50 */
+	
+		"Socket LGA1964", /* 0x51 */
+		"Socket LGA1792", /* 0x52 */
+		"Socket LGA2049", /* 0x53 */
+		"Socket LGA2551", /* 0x54 */
+		"Socket LGA1851", /* 0x55 */
+		"Socket LGA2114", /* 0x56 */
+		"Socket LGA1851"  /* 0x57 */
 	};
 
-	if (code >= 0x01 && code <= 0x50)
+	if (code >= 0x01 && code <= 0x57)
 		return upgrade[code - 0x01];
 	return out_of_spec;
 }
