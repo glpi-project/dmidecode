@@ -5729,13 +5729,14 @@ static u8 *dmi_table_get(off_t base, u32 *len, u16 num, u32 ver,
 		if (NULL != dataRef)
 			CFRelease(dataRef);
 
-		// This CFRelease throws 'Segmentation fault: 11' on OS X 10.12, except
-		// when run as the child of a signed binary, like lldb.
-		//
-		// See: https://github.com/cavaliercoder/dmidecode-osx/issues/3
-		//
-		//if (NULL != properties)
-		//	CFRelease(properties);
+		/*
+		 * This CFRelease throws 'Segmentation fault: 11' since macOS 10.12, if
+		 * the compiled binary is not signed with an Apple developer profile.
+		 */
+		#ifdef SIGNED_BINARY  // So don't do that unless you signed it
+		if (NULL != properties)
+			CFRelease(properties);
+		#endif
 
 		IOObjectRelease(service);
 #else
@@ -6161,7 +6162,7 @@ int main(int argc, char * const argv[])
 		goto exit_free;
 	}
 
-	CFDataGetBytes(dataRef, CFRangeMake(0, 0x20), (UInt8*)buf);
+	CFDataGetBytes(dataRef, CFRangeMake(0, CFDataGetLength(dataRef)), (UInt8*)buf);
 
 	if (NULL != dataRef)
 		CFRelease(dataRef);
