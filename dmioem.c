@@ -303,11 +303,12 @@ static void dmi_print_hp_net_iface_rec(u8 id, u8 bus, u8 dev, const u8 *mac)
 	}
 }
 
-typedef enum { G6 = 6, G7, G8, G9, G10, G10P, G11 } dmi_hpegen_t;
+typedef enum { G6 = 6, G7, G8, G9, G10, G10P, G11, G12 } dmi_hpegen_t;
 
 static int dmi_hpegen(const char *s)
 {
 	struct { const char *name; dmi_hpegen_t gen; } table[] = {
+		{ "Gen12",	G12 },
 		{ "Gen11",	G11 },
 		{ "Gen10 Plus",	G10P },
 		{ "Gen10",	G10 },
