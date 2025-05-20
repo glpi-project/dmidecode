@@ -1001,6 +1001,37 @@ static int dmi_decode_hp(const struct dmi_header *h)
 
 	switch (h->type)
 	{
+		case 193:
+			/*
+			 * Vendor Specific: Other ROM Info
+			 *
+			 * Offset |  Name      | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xC1, ROM Structure Indicator
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | ROM        | BYTE  | 01: Redundant ROM installed
+			 *  0x05  | ROM vers   | STRING| Version of the Redundant ROM
+			 *  0x06  | Reserved   | BYTE  | Reserved in Gen9 forward
+			 *  0x07  | OEM ROM    | STRING| If not blank, OEM ROM binary file name
+			 *  0x08  | OEM Date   | STRING| If not blank, OEM ROM binary build date
+			 */
+			if (gen < G9) return 0;
+			pr_handle_name("%s ProLiant Other ROM Info", company);
+			if (h->length < 0x09) break;
+			if ((gen < G12) && (data[0x04] & 0x01))
+				pr_attr("Redundant ROM Version", "%s", dmi_string(h, data[0x05]));
+			if (data[0x07])
+			{
+				const char *str = dmi_string(h, data[0x07]);
+				if (strncmp(str, "  ", 2))
+				{
+					pr_attr("OEM ROM Binary Filename", "%s", str);
+					pr_attr("OEM ROM Binary Build Date", "%s", dmi_string(h, data[0x08]));
+				}
+			}
+			break;
+
 		case 194:
 			/*
 			 * Vendor Specific: Super IO Enable/Disable Features
