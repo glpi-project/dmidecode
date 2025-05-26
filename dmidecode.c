@@ -6377,7 +6377,7 @@ int main(int argc, char * const argv[])
 		goto exit_free;
 	}
 
-	if((buf = malloc(0x20)) == NULL)
+	if ((buf = malloc(0x20)) == NULL)
 	{
 		perror("malloc");
 		ret = 1;
@@ -6390,7 +6390,7 @@ int main(int argc, char * const argv[])
 		CFRelease(dataRef);
 	IOObjectRelease(service);
 
-	if (smbios_decode(buf, NULL, FLAG_READ_FROM_API))
+	if (smbios_decode(buf, NULL, FLAG_READ_FROM_API, FLAG_NO_FILE_OFFSET))
 	{
 		found++;
 		goto done;
