@@ -1147,6 +1147,98 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			}
 			break;
 
+		case 202:
+			/*
+			 * Vendor Specific: HPE DIMM Location Record
+			 *
+			 * This record allows software to correlate a Type 17 Memory Device Record
+			 * with a specific DIMM (DIMM, Board, and/or Processor number if appropriate).
+			 *
+			 * There will be one Record Type 202 for each DIMM socket possible in the system.
+			 * A system will include a record for each DIMM socket even if that DIMM socket
+			 * is on a memory board which is not currently installed.
+			 *
+			 * Offset |  Name        | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type         | BYTE  | 0xCA, DIMM Location Record
+			 *  0x01  | Length       | BYTE  | Length of structure
+			 *  0x02  | Handle       | WORD  | Unique handle
+			 *  0x04  | Assoc Record | WORD  | Handle of Associated Type 17 Memory Record
+			 *  0x06  | Board Number | BYTE  | 1-based Memory Board number. 0FFh: DIMM on system board
+			 *  0x07  | DIMM Number  | BYTE  | 1-based DIMM number
+			 *  0x08  | Proc Number  | BYTE  | 1-based procssor number. 0FFh don't display
+			 *  0x09  | Log DIMM Num | BYTE  | 1-based Logical DIMM number mapping to ACPI numbering
+			 *  0x0A  | UEFI Dev Path| STRING| String number for UEFI Device Path
+			 *  0x0B  | UEFI Dev Name| STRING| String number for UEFI Device Structured Name
+			 *  0x0C  | Device Name  | STRING| String number for Device Name
+			 *  0x0D  | Mem Cntrl Num| BYTE  | 1-based Memory controller number
+			 *  0x0E  | Mem Chan Num | BYTE  | 1-based memory channel number (matches silk screen)
+			 *  0x0F  | IE DIMM Num  | BYTE  | 0-based DIMM number repored by IE. FF -> not supported
+			 *				 | Reserved G12 or later
+			 *  0x10  | IE PLDM ID   | BYTE  | IE PLDM Sensor ID. FF -> not supported
+			 *				 | Reserved G12 or later
+			 *  0x11  | Vendor ID    | WORD  | Module manufacturers ID code as read by SPD
+			 *  0x13  | Device ID    | WORD  | (NVDIMM only) Module product ID code from SPD
+			 *  0x15  | Sub Cntrl Ven| WORD  | (NVDIMM only) Controller manufacturer ID from SPD
+			 *  0x17  | Sub Cntrl Dev| WORD  | (NVDIMM only) Controller product ID from SPD
+			 *  0x19  | Interleave   | BYTE  | 1-based unique interleave set within Procssor Number
+			 *  0x1A  | Part Number  | STRING| String number for HPE part number from OEM SPD
+			 *  0x1B  | DIMM Index   | BYTE  | 0-based DIMM Index Per Channel
+			 */
+
+			if (gen < G9) return 0;
+			pr_handle_name("%s DIMM Location Record", company);
+
+			if (h->length < 0x09) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Memory Record", "0x%04X", WORD(data + 0x04));
+			if (data[0x06] == 0xFF)
+				pr_attr("Board Number", "%s", "System Board");
+			else
+				pr_attr("Board Number", "%d", data[0x06]);
+			pr_attr("DIMM Number", "%d", data[0x07]);
+			if (data[0x08] != 0xFF)
+				pr_attr("Processor Number", "%d", data[0x08]);
+
+			if (h->length < 0x0A) break;
+			pr_attr("Logical DIMM Number", "%d", data[0x09]);
+
+			if (h->length < 0x0D) break;
+			if (data[0x0A])
+				pr_attr("UEFI Device Path", "%s", dmi_string(h, data[0x0A]));
+			if (data[0x0B])
+				pr_attr("UEFI Device Name", "%s", dmi_string(h, data[0x0B]));
+			if (data[0x0C])
+				pr_attr("Device Name", "%s", dmi_string(h, data[0x0C]));
+
+			if (h->length < 0x19) break;
+			if (data[0x0D])
+				pr_attr("Memory Controller Number", "%d", data[0x0D]);
+			if (data[0x0E])
+				pr_attr("Memory Channel Number", "%d", data[0x0E]);
+			if (gen < G12 && data[0x0F] != 0xFF)
+				pr_attr("IE DIMM Number", "%d", data[0x0F]);
+			if (gen < G12 && data[0x10] != 0xFF)
+				pr_attr("IE PLDM ID", "%d", data[0x10]);
+			if (data[0x11] || data[0x12])
+				pr_attr("Vendor ID", "0x%04X", WORD(data + 0x11));
+			if (data[0x13] || data[0x14])
+				pr_attr("Device ID", "0x%04X", WORD(data + 0x13));
+			if (data[0x15] || data[0x16])
+				dmi_memory_manufacturer_id("Controller Manufacturer ID", WORD(data + 0x15));
+			if (data[0x17] || data[0x18])
+				dmi_memory_product_id("Controller Product ID", WORD(data + 0x17));
+
+			if (h->length < 0x1A) break;
+			if (data[0x19])
+				pr_attr("Best Interleave", "%d", data[0x19]);
+			if (h->length < 0x1B) break;
+			pr_attr("Part Number", "%s", dmi_string(h, data[0x1A]));
+
+			if (h->length < 0x1C) break;
+			pr_attr("DIMM Index", "%d", data[0x1B]);
+			break;
+
 		case 203:
 			/*
 			 * Vendor Specific: HP Device Correlation Record
