@@ -3023,7 +3023,7 @@ static void dmi_memory_operating_mode_capability(u16 code)
 	}
 }
 
-static void dmi_memory_manufacturer_id(const char *attr, u16 code)
+void dmi_memory_manufacturer_id(const char *attr, u16 code)
 {
 	/* 7.18.8 */
 	/* 7.18.10 */
@@ -3037,7 +3037,7 @@ static void dmi_memory_manufacturer_id(const char *attr, u16 code)
 			(code & 0x7F) + 1, code >> 8);
 }
 
-static void dmi_memory_product_id(const char *attr, u16 code)
+void dmi_memory_product_id(const char *attr, u16 code)
 {
 	/* 7.18.9 */
 	/* 7.18.11 */
