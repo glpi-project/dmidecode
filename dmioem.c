@@ -1297,8 +1297,8 @@ static int dmi_decode_hp(const struct dmi_header *h)
 				dmi_hp_203_pciinfo("PCI Device ID", WORD(data + 0x0A));
 				dmi_hp_203_pciinfo("PCI Sub Vendor ID", WORD(data + 0x0C));
 				dmi_hp_203_pciinfo("PCI Sub Device ID", WORD(data + 0x0E));
-				dmi_hp_203_pciinfo("PCI Class Code", (char)data[0x10]);
-				dmi_hp_203_pciinfo("PCI Sub Class Code", (char)data[0x11]);
+				pr_attr("PCI Class Code", "0x%02x", data[0x10]);
+				pr_attr("PCI Sub Class Code", "0x%02x", data[0x11]);
 			}
 			dmi_hp_203_assoc_hndl("Parent Handle", WORD(data + 0x12));
 			pr_attr("Flags", "0x%04X", WORD(data + 0x14));
