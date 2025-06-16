@@ -1131,14 +1131,19 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			pr_handle_name("%s ProLiant CPU Microcode Patch Support Info", company);
 
 			for (ptr = 0x4; ptr + 12 <= h->length; ptr += 12) {
-				u32 cpuid = DWORD(data + ptr + 2 * 4);
+				u8 cpuid[4];
 				u32 date;
 
+				memcpy(cpuid, data + ptr + 2 * 4, 4);
 				/* AMD omits BaseFamily. Reconstruction valid on family >= 15. */
 				if (cpuid_type == cpuid_x86_amd)
-					cpuid = ((cpuid & 0xfff00) << 8) | 0x0f00 | (cpuid & 0xff);
+				{
+					cpuid[3] = cpuid[2] & 0x0f;
+					cpuid[2] = cpuid[1];
+					cpuid[1] = 0x0f;
+				}
 
-				dmi_print_cpuid(pr_attr, "CPU ID", cpuid_type, (u8 *) &cpuid);
+				dmi_print_cpuid(pr_attr, "CPU ID", cpuid_type, cpuid);
 
 				date = DWORD(data + ptr + 4);
 				pr_subattr("Date", "%04x-%02x-%02x",
