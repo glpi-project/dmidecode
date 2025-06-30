@@ -359,14 +359,6 @@ static void dmi_hp_203_assoc_hndl(const char *fname, u16 num)
 		pr_attr(fname, "0x%04X", num);
 }
 
-static void dmi_hp_203_pciinfo(const char *fname, u16 num)
-{
-	if (num == 0xFFFF)
-		pr_attr(fname, "Device Not Present");
-	else
-		pr_attr(fname, "0x%04x", num);
-}
-
 static void dmi_hp_203_bayenc(const char *fname, u8 num)
 {
 	switch (num)
@@ -1293,10 +1285,10 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			}
 			else
 			{
-				dmi_hp_203_pciinfo("PCI Vendor ID", WORD(data + 0x08));
-				dmi_hp_203_pciinfo("PCI Device ID", WORD(data + 0x0A));
-				dmi_hp_203_pciinfo("PCI Sub Vendor ID", WORD(data + 0x0C));
-				dmi_hp_203_pciinfo("PCI Sub Device ID", WORD(data + 0x0E));
+				pr_attr("PCI Vendor ID", "0x%04x", WORD(data + 0x08));
+				pr_attr("PCI Device ID", "0x%04x", WORD(data + 0x0A));
+				pr_attr("PCI Sub Vendor ID", "0x%04x", WORD(data + 0x0C));
+				pr_attr("PCI Sub Device ID", "0x%04x", WORD(data + 0x0E));
 				pr_attr("PCI Class Code", "0x%02x", data[0x10]);
 				pr_attr("PCI Sub Class Code", "0x%02x", data[0x11]);
 			}
