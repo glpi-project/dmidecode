@@ -725,6 +725,22 @@ static void dmi_hp_230_method_bus_seg_addr(u8 code, u8 bus_seg, u8 addr)
 		pr_attr("I2C Address", "0x%02x", addr >> 1);
 }
 
+static void dmi_hp_232_encrypt(u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const status[] = {
+		"Not Encrypted",
+		"Encrypted",
+		"Unknown",
+		"Not Supported",
+	};
+
+	if (code < ARRAY_SIZE(status))
+		str = status[code];
+
+	pr_attr("Encryption Status", "%s", str);
+}
+
 static void dmi_hp_238_loc(const char *fname, unsigned int code)
 {
 	const char *str = "Reserved";
@@ -1523,6 +1539,75 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			pr_attr("Manufacturer", "%s", dmi_string(h, data[0x06]));
 			pr_attr("Revision", "%s", dmi_string(h, data[0x07]));
 			dmi_hp_230_method_bus_seg_addr(data[0x08], data[0x09], data[0x0A]);
+			break;
+
+		case 232:
+			/*
+			 * Vendor Specific: DIMM Attributes Record
+			 *
+			 * This record is used to communicate information about DIMMs that is not
+			 * available via Industry Standard SMBIOS Records.
+			 *
+			 * There will be one Record Type 232 for each DIMM socket possible in the
+			 * system (just like Type 17 Records).
+			 *
+			 * Offset| Name        | Width | Description
+			 * -----------------------------------------
+			 *  0x00 | Type        | BYTE  | 0xE8, DIMM Attributes Record
+			 *  0x01 | Length      | BYTE  | Length of structure
+			 *  0x02 | Handle      | WORD  | Unique handle
+			 *  0x04 | Assoc Handle| WORD  | Associated Handle (Type 17)
+			 *  0x06 | DIMM Attr   | DWORD | Attributes Bitfield (Defined in code)
+			 *  0x0A | Min Voltage | WORD  | Minimum operating voltage in millivolts
+			 *  0x0C | Cfg Voltage | WORD  | Configured operating voltage in millivolts
+			 *  0x0E | RESERVED    |
+			 *  .... | RESERVED    |
+			 *  0x21 | RESERVED    |
+			 *  0x22 | Map-Out     | BYTE  | Bit Field reason for DIMM being mapped out
+			 *  0x23 | Encryption  | BYTE  | Encryption status
+			 */
+			if (gen < G9) return 0;
+			pr_handle_name("%s DIMM Attributes Record", company);
+
+			if (h->length < 0x0E) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x04));
+
+			feat = DWORD(data + 0x06);
+			pr_attr("Attributes", "0x%08X", feat);
+			/* Bit [1:0] HP SmartMemory */
+			pr_subattr("HPE Smart Memory",
+					(feat & 0x03) == 0 ? "No" :
+					(feat & 0x03) == 1 ? "Yes" : "Unknown");
+			/* Bit [3:2] Indicator if DIMM is Load Reduced (LR) */
+			/* Bit [2]: 1 = Field Supported */
+			if (feat & (1 << 2))
+				pr_subattr("Load Reduced DIMM installed",
+					(feat & (1 << 3)) ? "Yes" : "No");
+			/* Bit [5:4] HP Standard DIMM Indicator */
+			/* Bit [4]: 1 = Field Supported */
+			if (feat & (1 << 4))
+				pr_subattr("HPE Standard Memory Installed",
+					(feat & (1 << 5)) ? "Yes" : "No");
+			if (WORD(data + 0x0A))
+				pr_attr("Minimum Voltage", "%d mV", WORD(data + 0x0A));
+			else
+				pr_attr("Minimum Voltage", "Unknown");
+
+			if (WORD(data + 0x0C))
+				pr_attr("Configured Voltage", "%d mV", WORD(data + 0x0C));
+			else
+				pr_attr("Configured Voltage", "Unknown");
+
+			if (h->length < 0x23) break;
+			feat = data[0x22];
+			if (feat) {
+				pr_attr("Map-Out Reason", "0x%0X", feat);
+				pr_subattr("Configuration Error", (feat & 0x01) ? "Yes" : "No");
+				pr_subattr("Training Error", (feat & 0x02) ? "Yes" : "No");
+			}
+			if (h->length < 0x24) break;
+			dmi_hp_232_encrypt(data[0x23]);
 			break;
 
 		case 233:
