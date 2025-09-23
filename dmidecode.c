@@ -4639,7 +4639,12 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			dmi_processor_id(h);
 			pr_attr("Version", "%s",
 				dmi_string(h, data[0x10]));
-			dmi_processor_voltage("Voltage", data[0x11]);
+			/*
+			 * Since SMBIOS 3.8.0, the processor voltage field
+			 * is deprecated, so ignore it if no value is set.
+			 */
+			if (data[0x11])
+				dmi_processor_voltage("Voltage", data[0x11]);
 			dmi_processor_frequency("External Clock", data + 0x12);
 			dmi_processor_frequency("Max Speed", data + 0x14);
 			dmi_processor_frequency("Current Speed", data + 0x16);
