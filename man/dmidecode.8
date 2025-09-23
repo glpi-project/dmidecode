@@ -108,6 +108,9 @@ It must be a keyword from the following list:
 .BR processor\-version ,
 .BR processor\-frequency .
 .hy
+In this context, for historical reasons, "bios" designates the platform
+firmware (regardless of it technically implementing the BIOS standard),
+while "firmware" designates the embedded controller firmware, if applicable.
 Each keyword corresponds to a given \s-1DMI\s0 type and a given offset
 within this entry type.
 Not all strings may be meaningful or even defined on all systems. Some
@@ -149,6 +152,8 @@ keyword from the following list:
 .BR slot .
 .hy
 Refer to the DMI TYPES section below for details.
+In this context, for historical reasons, "bios" designates the platform
+firmware, regardless of it technically implementing the BIOS standard.
 If this option is used more than once, the set of displayed entries will be
 the union of all the given types.
 If \fITYPE\fP is not provided or not valid, a list of all valid keywords
