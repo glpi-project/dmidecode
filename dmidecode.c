@@ -984,6 +984,7 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 		{ 0xCD, "Core i5" },
 		{ 0xCE, "Core i3" },
 		{ 0xCF, "Core i9" },
+		{ 0xD0, "Xeon D" },
 
 		{ 0xD2, "C7-M" },
 		{ 0xD3, "C7-D" },
