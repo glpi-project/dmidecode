@@ -168,7 +168,7 @@ const char *dmi_string(const struct dmi_header *dm, u8 s)
 static const char *dmi_smbios_structure_type(u8 code)
 {
 	static const char *type[] = {
-		"BIOS", /* 0 */
+		"Platform Firmware", /* 0 */
 		"System",
 		"Base Board",
 		"Chassis",
@@ -181,7 +181,7 @@ static const char *dmi_smbios_structure_type(u8 code)
 		"On Board Devices",
 		"OEM Strings",
 		"System Configuration Options",
-		"BIOS Language",
+		"Firmware Language",
 		"Group Associations",
 		"System Event Log",
 		"Physical Memory Array",
@@ -346,7 +346,7 @@ void dmi_print_storage_size(const char *attr, u64 code, unsigned int shift)
 }
 
 /*
- * 7.1 BIOS Information (Type 0)
+ * 7.1 Platform Firmware Information (Type 0)
  */
 
 static void dmi_bios_runtime_size(u32 code)
@@ -384,7 +384,7 @@ static void dmi_bios_characteristics(u64 code)
 {
 	/* 7.1.1 */
 	static const char *characteristics[] = {
-		"BIOS characteristics not supported", /* 3 */
+		"Firmware characteristics not supported", /* 3 */
 		"ISA is supported",
 		"MCA is supported",
 		"EISA is supported",
@@ -392,13 +392,13 @@ static void dmi_bios_characteristics(u64 code)
 		"PC Card (PCMCIA) is supported",
 		"PNP is supported",
 		"APM is supported",
-		"BIOS is upgradeable",
-		"BIOS shadowing is allowed",
+		"Firmware is upgradeable",
+		"Firmware shadowing is allowed",
 		"VLB is supported",
 		"ESCD support is available",
 		"Boot from CD is supported",
 		"Selectable boot is supported",
-		"BIOS ROM is socketed",
+		"Firmware ROM is socketed",
 		"Boot from PC Card (PCMCIA) is supported",
 		"EDD is supported",
 		"Japanese floppy for NEC 9800 1.2 MB is supported (int 13h)",
@@ -1420,8 +1420,8 @@ static const char *dmi_processor_status(u8 code)
 	static const char *status[] = {
 		"Unknown", /* 0x00 */
 		"Enabled",
-		"Disabled By User",
-		"Disabled By BIOS",
+		"Disabled by user",
+		"Disabled by firmware",
 		"Idle", /* 0x04 */
 		out_of_spec,
 		out_of_spec,
@@ -2517,7 +2517,7 @@ static void dmi_system_configuration_options(const struct dmi_header *h)
 }
 
 /*
- * 7.14 BIOS Language Information (Type 13)
+ * 7.14 Firmware Language Information (Type 13)
  */
 
 static void dmi_bios_languages(const struct dmi_header *h)
@@ -4497,8 +4497,8 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 	 */
 	switch (h->type)
 	{
-		case 0: /* 7.1 BIOS Information */
-			pr_handle_name("BIOS Information");
+		case 0: /* 7.1 Platform Firmware Information */
+			pr_handle_name("Platform Firmware Information");
 			if (h->length < 0x12) break;
 			pr_attr("Vendor", "%s",
 				dmi_string(h, data[0x04]));
@@ -4527,10 +4527,10 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			pr_list_end();
 			if (h->length < 0x18) break;
 			if (data[0x14] != 0xFF && data[0x15] != 0xFF)
-				pr_attr("BIOS Revision", "%u.%u",
+				pr_attr("Platform Firmware Revision", "%u.%u",
 					data[0x14], data[0x15]);
 			if (data[0x16] != 0xFF && data[0x17] != 0xFF)
-				pr_attr("Firmware Revision", "%u.%u",
+				pr_attr("Embedded Controller Firmware Revision", "%u.%u",
 					data[0x16], data[0x17]);
 			break;
 
@@ -4822,8 +4822,8 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			dmi_system_configuration_options(h);
 			break;
 
-		case 13: /* 7.14 BIOS Language Information */
-			pr_handle_name("BIOS Language Information");
+		case 13: /* 7.14 Firmware Language Information */
+			pr_handle_name("Firmware Language Information");
 			if (h->length < 0x16) break;
 			if (ver >= 0x0201)
 			{

@@ -1,6 +1,6 @@
 '\" t
 .\" ** The above line should force tbl to be a preprocessor **
-.TH DMIDECODE 8 "February 2023" "dmidecode"
+.TH DMIDECODE 8 "June 2025" "dmidecode"
 .\"
 .SH NAME
 dmidecode \- \s-1DMI\s0 table decoder
@@ -14,7 +14,7 @@ dmidecode \- \s-1DMI\s0 table decoder
 is a tool for dumping a computer's \s-1DMI\s0 (some say \s-1SMBIOS\s0) table
 contents in a human-readable format. This table contains a description of the
 system's hardware components, as well as other useful pieces of information
-such as serial numbers and \s-1BIOS\s0 revision. Thanks to this table, you can
+such as serial numbers and firmware revision. Thanks to this table, you can
 retrieve this information without having to probe for the actual hardware.
 While this is a good point in terms of report speed and safeness, this also
 makes the presented information possibly unreliable.
@@ -203,7 +203,7 @@ determine the output format and are mutually exclusive.
 .P
 Please note in case of
 .B dmidecode
-is run on a system with BIOS that boasts new SMBIOS specification, which
+is run on a system with firmware that boasts new SMBIOS specification, which
 is not supported by the tool yet, it will print out relevant message in
 addition to requested data on the very top of the output. Thus informs the
 output data is not reliable.
@@ -215,7 +215,7 @@ r l
 __
 r l.
 Type	Information
-0	BIOS
+0	Platform Firmware
 1	System
 2	Baseboard
 3	Chassis
@@ -228,7 +228,7 @@ Type	Information
 10	On Board Devices
 11	OEM Strings
 12	System Configuration Options
-13	BIOS Language
+13	Firmware Language
 14	Group Associations
 15	System Event Log
 16	Physical Memory Array
