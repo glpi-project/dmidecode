@@ -1192,8 +1192,9 @@ static enum cpuid_type dmi_get_cpuid_type(const struct dmi_header *h)
 void dmi_print_cpuid(void (*print_cb)(const char *name, const char *format, ...),
 		     const char *label, enum cpuid_type sig, const u8 *p)
 {
-	u32 eax, midr, jep106, soc_revision;
-	u16 dx;
+	u32 eax, midr, soc_revision;
+	u16 dx, soc_id;
+	u8 jep106_code, jep106_bank;
 
 	switch (sig)
 	{
@@ -1233,12 +1234,12 @@ void dmi_print_cpuid(void (*print_cb)(const char *name, const char *format, ...)
 
 		case cpuid_arm_soc_id: /* ARM with SOC ID */
 			/*
-			 * If Soc ID is supported, the first DWORD is the JEP-106 code;
-			 * the second DWORD is the SoC revision value.
-			 */
-			jep106 = DWORD(p);
-			soc_revision = DWORD(p + 4);
-			/*
+			 * If SoC ID is supported, the first WORD is a SiP
+			 * defined SoC ID; the next BYTE is the JEP-106
+			 * identification code of the SiP; the next BYTE is
+			 * its bank index; lastly, the next DWORD is the SoC
+			 * revision value.
+			 *
 			 * According to SMC Calling Convention (SMCCC) v1.3 specification
 			 * (https://developer.arm.com/documentation/den0028/d/), the format
 			 * of the values returned by the SMCCC_ARCH_SOC_ID call is as follows:
@@ -1253,9 +1254,14 @@ void dmi_print_cpuid(void (*print_cb)(const char *name, const char *format, ...)
 			 *   Bit[31] must be zero
 			 *   Bits[30:0] SoC revision
 			 */
+			soc_id = WORD(p);
+			jep106_code = p[2] & 0x7F;
+			jep106_bank = p[3] & 0x7F;
+			soc_revision = DWORD(p + 4);
+
 			pr_attr("Signature",
 				"JEP-106 Bank 0x%02x Manufacturer 0x%02x, SoC ID 0x%04x, SoC Revision 0x%08x",
-				(jep106 >> 24) & 0x7F, (jep106 >> 16) & 0x7F, jep106 & 0xFFFF, soc_revision);
+				jep106_bank, jep106_code, soc_id, soc_revision);
 			return;
 
 		case cpuid_x86_intel: /* Intel */
