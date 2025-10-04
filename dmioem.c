@@ -949,6 +949,22 @@ static void dmi_hp_242_speed(const char *attr, u16 speed)
 		pr_attr(attr, "%s", "Unknown");
 }
 
+static void dmi_hp_244_health(u8 code)
+{
+	const char *str = "Reserved";
+	static const char * const health[] = {
+		"Healthy", /* 0x00 */
+		"DIMM Missing",
+		"Config Inactive",
+		"SPA Missing",
+		"New Goal",
+		"Locked", /* 0x05 */
+	};
+	if (code < ARRAY_SIZE(health))
+		str = health[code];
+	pr_attr("Interleave Set Health", "%s", str);
+}
+
 static void dmi_hp_245_pcie_riser(const struct dmi_header *h)
 {
 	const char *str = "Reserved";
@@ -1917,6 +1933,76 @@ static int dmi_decode_hp(const struct dmi_header *h)
 				pr_attr("Rotational Speed", "%hhu RPM", data[0x38]);
 			dmi_hp_242_speed("Negotiated Speed", WORD(data + 0x3A));
 			dmi_hp_242_speed("Capable Speed", WORD(data + 0x3C));
+			break;
+
+		case 244:
+			/*
+			 * Vendor Specific: HPE DIMM Current Configuration Record
+			 *
+			 * This record is used to communicate information about the currently
+			 * configured memory regions on DIMMs installed in the system.
+			 *
+			 * There will be at least one Type 244 Record for each DIMM installed
+			 * in the system with configured non-volatile or volatile memory.
+			 *
+			 * The number of DIMM Configuration Records for each DIMM is specified by
+			 * the Configured Region Count field in its corresponding Type 232 DIMM
+			 * Capabilities record. Each record represents a memory region on the
+			 * DIMM, labeled by its Region ID. The Memory Type field can be used to
+			 * determine the currently configured memory type for the region. When
+			 * set to Volatile, the data on the memory region is lost on a power
+			 * cycle. When set to Byte Accessible Persistent, the data on
+			 * the memory region is retained through a reset. The Region Memory Size
+			 * field contains the size of the configured region in MiB.
+			 *
+			 * The Passphrase State specifies the enable/disable state of the
+			 * Passphrase requirement and is only applicable when the DIMM region is
+			 * configured as Byte Accessible Persistent. The Interleave Set Index
+			 * specifies which interleave set the DIMM region belongs to, if any.
+			 * Regions with identical interleave set indices mean the DIMM regions
+			 * are interleaved. These indices should match what is found in the DIMM's
+			 * PCAT Interleave Information tables.  Interleave set indices are
+			 * 1-based. This will be a unique value per interleave set. If the DIMM
+			 * region is not interleaved, the interleave set index will
+			 * still be a unique value.
+			 *
+			 * Offset |  Name      | Width | Description
+			 * ---------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xF4, DIMM Current Configuration Record
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | Hndl Assoc | WORD  | Handle of corresponding Type 17 record
+			 *  0x06  | Region ID  | BYTE  | Unique ID of memory region on DIMM
+			 *  0x07  | Region Type| WORD  | Persistence Type. Bit Field: See code
+			 *  0x09  | Region Size| QWORD | Size of memory region in MiB
+			 *  0x11  | Passphrase | BYTE  | Current state of Passphrase. See code
+			 *  0x12  | Set Index  | WORD  | Interleave set index. Region w/ same index
+			 *			       | are part of same interleave set.
+			 *  0x14  | DIMM Count | BYTE  | Number of DIMMs in interleave set
+			 *  0x15  | Health     | BYTE  | Health of Interleave set defined in code
+			 */
+
+			pr_handle_name("%s DIMM Current Configuration", company);
+			if (h->length < 0x14) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x04));
+			pr_attr("Region ID", "%hhu", data[0x06]);
+			feat = WORD(data + 0x07);
+			pr_attr("Persistence Type", "%s", (feat & 0x01) ? "Volatile" :
+							  ((feat >> 1) & 0x01) ? "Byte Accessible" :
+							  ((feat >> 2) & 0x01) ? "Block I/O" :
+							  "Reserved");
+			dmi_print_memory_size("Size", QWORD(data + 0x09), 2);
+			pr_attr("Passphrase Enabled", "%s", data[0x11] ? "Yes" : "No");
+			feat = WORD(data + 0x12);
+			if (feat)
+				pr_attr("Interleave Set Index", "%u", feat);
+			if (h->length < 0x15) break;
+			if (feat)
+				pr_attr("Interleave DIMM Count", "%hhu", data[0x14]);
+			if (h->length < 0x16) break;
+			if (feat)
+				dmi_hp_244_health(data[0x15]);
 			break;
 
 		case 245:
