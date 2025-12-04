@@ -1442,6 +1442,55 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			}
 			break;
 
+		case 211:
+			/*
+			 * Vendor Specific: HPE ProLiant Processor TControl Information
+			 *
+			 * Provides information about the Tcontrol value for each installed
+			 * processor.  This information is utilized to optimize the thermal fan
+			 * control systems on the system. For some systems, this can be handled
+			 * totally by the System ROM (systems with 7463 fan controllers). For
+			 * systems that utilize TAFI, the Health Driver handles fan control.
+			 * The Health Driver must know the value for Tcontrol for all processors
+			 * to be able to customize the fan control for the installed processors.
+			 *
+			 * Tcontrol is a value programmed into each processor by Intel that
+			 * indicates the processors thermal properties.  The value is based on
+			 * how "leaky" the particular processor's transistors are.  A more "leaky"
+			 * processor will get hotter for a given power input and thus will have a
+			 * higher Tcontrol value. Intel officially suggests keeping a processor
+			 * below the Tcontrol value for reliability reasons. HP is using Tcontrol
+			 * as the point at which we begin spinning up the fans.
+			 *
+			 * Software must check the corresponding Record Type 4 to determine if the
+			 * processor is installed. If the processor is not installed, the
+			 * corresponding Record Type 211 should not be utilized. Record Type 197
+			 * must be used to correlate Type 211 Record to the processor's APIC ID.
+			 * This must be done to know which TAFI controller must be programmed with
+			 * a particular Tcontrol value. Type 197 Record has an identifier which
+			 * relates it to a Type 4 Record, so it is possible to correlate a
+			 * Type 211 Record with a Type 197 Record.
+			 *
+			 * Offset |  Name  | Width | Description
+			 * -------------------------------------
+			 *  0x00  |  Type  | BYTE  | 0xD3, TControl Info
+			 *  0x01  | Length | BYTE  | Length of structure
+			 *  0x02  | Handle | WORD  | Unique handle
+			 *  0x04  | Handle | WORD  | Handle of Corresponding Type 4 Processor Record
+			 *  0x06  |Tcontrol| BYTE  | Processor Tcontrol Value. 00 -> Value N/A.
+			 */
+
+			pr_handle_name("%s ProLiant TControl Information", company);
+			if (h->length < 0x07) break;
+			if (!(opt.flags & FLAG_QUIET))
+				pr_attr("Associated Processor Handle", "0x%04X",
+					WORD(data + 0x04));
+			if (data[0x06])
+				pr_attr("TControl Value", "%d", data[0x06]);
+			else
+				pr_attr("TControl Value", "%s", "N/A");
+			break;
+
 		case 212:
 			/*
 			 * Vendor Specific: HPE 64-bit CRU Information
