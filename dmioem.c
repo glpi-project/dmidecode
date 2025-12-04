@@ -1077,6 +1077,37 @@ static int dmi_decode_hp(const struct dmi_header *h)
 			pr_attr("Virtual Serial Port", "%s", feat & (1 << 4) ? "Enabled" : "Disabled");
 			break;
 
+		case 195:
+			/*
+			 * Vendor Specific: Server System ID
+			 *
+			 * Offset |  Name      | Width | Description
+			 * ----------------------------------------------
+			 *  0x00  | Type       | BYTE  | 0xC3, Server System ID
+			 *  0x01  | Length     | BYTE  | Length of structure
+			 *  0x02  | Handle     | WORD  | Unique handle
+			 *  0x04  | System ID  | STRING| Server System ID
+			 *  0x05  | Platform ID| BYTE  | Low byte of Platform ID from XREG in CPLD
+			 *  0x06  | Platform ID| BYTE  | High byte of Platform ID from XREG in CPLD
+			 *  0x07  | GUID       |16 BYTE| RESERVED: Deprecated Gen 11 and later.
+			 *
+			 * This structure exists to define a unique system ID that replaces the
+			 * old system EISA ID. It is to be used in systems where the system
+			 * EISA ID port is not present.
+			 *
+			 * It also exposes the Platform ID from the CPLD Xregister. This value is
+			 * used by iLO to identify the platform and will be used for identification
+			 * and matching of certain flash deliverables.
+			 */
+
+			pr_handle_name("%s ProLiant Server System ID", company);
+			if (h->length < 0x05) break;
+			pr_attr("Server System ID", "%s", dmi_string(h, data[0x04]));
+			if (h->length < 0x07) break;
+			/* Display byte order is uncertain, to be confirmed */
+			pr_attr("Platform ID", "%d:%d", data[0x05], data[0x06]);
+			break;
+
 		case 197:
 			/*
 			 * Vendor Specific: HPE Processor Specific Information
