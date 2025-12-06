@@ -55,5 +55,7 @@ void dmi_print_cpuid(void (*print_cb)(const char *name, const char *format, ...)
 		     const char *label, enum cpuid_type sig, const u8 *p);
 void dmi_memory_manufacturer_id(const char *attr, u16 code);
 void dmi_memory_product_id(const char *attr, u16 code);
+void dmi_system_uuid(void (*print_cb)(const char *name, const char *format, ...),
+		     const char *attr, const u8 *p, u16 ver);
 
 #endif

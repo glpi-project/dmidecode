@@ -473,8 +473,8 @@ static void dmi_bios_characteristics_x2(u8 code)
  * 7.2 System Information (Type 1)
  */
 
-static void dmi_system_uuid(void (*print_cb)(const char *name, const char *format, ...),
-			    const char *attr, const u8 *p, u16 __attribute__ ((unused)) ver)
+void dmi_system_uuid(void (*print_cb)(const char *name, const char *format, ...),
+		     const char *attr, const u8 *p, u16 __attribute__ ((unused)) ver)
 {
 	int only0xFF = 1, only0x00 = 1;
 	int i;
