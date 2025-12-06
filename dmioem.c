@@ -1011,7 +1011,7 @@ static void dmi_hp_245_pcie_mhs_riser(const struct dmi_header *h)
 	pr_list_end();
 }
 
-static int dmi_decode_hp(const struct dmi_header *h)
+static int dmi_decode_hp(const struct dmi_header *h, u16 ver)
 {
 	u8 *data = h->data;
 	int nic, ptr;
@@ -1607,6 +1607,37 @@ static int dmi_decode_hp(const struct dmi_header *h)
 				pr_attr("Associated Handle", "0x%04X", WORD(data + 0x8));
 			if (h->length < 0x0c) break;
 			dmi_hp_224_chipid(WORD(data + 0x0a));
+			break;
+
+		case 226:
+			/*
+			 * Vendor Specific: Physical Attribute Information
+			 *
+			 * This structure exists to store physical attributes for which virtual
+			 * attributes have been stored in the industry standard SMBIOS fields
+			 * which would normally store these physical attributes. This OEM SMBIOS
+			 * Record was initially defined for the SYNERGY project where it was
+			 * required that a virtual serial number and UUID be applied to the
+			 * system. These virtual values must be stored in the standard SMBIOS
+			 * fields so that industry standard software would detect these virtual
+			 * values, allowing a workload to transition from one physical piece of
+			 * hardware to another. This Record was created because a place was needed
+			 * to store the physical attributes (serial number and UUID) for use in
+			 * asset tracking and warranty events.
+			 *
+			 * Offset |  Name  | Width | Description
+			 * -------------------------------------
+			 *  0x00  | Type   | BYTE  | 0xE2, Physical Attribute
+			 *  0x01  | Length | BYTE  | Length of structure
+			 *  0x02  | Handle | WORD  | Unique handle
+			 *  0x04  | UUID   |16 BYTE| if !0 => Physical Universal Unique ID Number
+			 *  0x14  |  SN    | STRING| Physical Serial Number. Match Record Type 1
+			 */
+			pr_handle_name("%s Physical Attribute Information", company);
+			if (h->length < 0x15) break;
+			if (QWORD(data + 0x0C) || QWORD(data + 0x04))
+				dmi_system_uuid(pr_attr, "UUID", data + 0x04, ver);
+			pr_attr("Serial Number", "%s", dmi_string(h, data[0x14]));
 			break;
 
 		case 230:
@@ -2267,7 +2298,7 @@ int dmi_decode_oem(const struct dmi_header *h, u16 ver)
 	{
 		case VENDOR_HP:
 		case VENDOR_HPE:
-			return dmi_decode_hp(h);
+			return dmi_decode_hp(h, ver);
 		case VENDOR_ACER:
 			return dmi_decode_acer(h);
 		case VENDOR_DELL:
