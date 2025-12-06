@@ -280,7 +280,8 @@ static void dmi_dump(const struct dmi_header *h)
 }
 
 /* shift is 0 if the value is in bytes, 1 if it is in kibibytes */
-void dmi_print_memory_size(const char *attr, u64 code, int shift)
+void dmi_print_memory_size(void (*print_cb)(const char *name, const char *format, ...),
+			   const char *attr, u64 code, int shift)
 {
 	unsigned long capacity;
 	u16 split[7];
@@ -320,7 +321,7 @@ void dmi_print_memory_size(const char *attr, u64 code, int shift)
 	else
 		capacity = split[i];
 
-	pr_attr(attr, "%lu %s", capacity, unit[i + shift]);
+	print_cb(attr, "%lu %s", capacity, unit[i + shift]);
 }
 
 /* shift is 0 if the value is in bytes, 1 if it is in kB, 2 if it is in MB */
@@ -374,7 +375,7 @@ static void dmi_bios_rom_size(u8 code1, u16 code2)
 
 	if (code1 != 0xFF)
 	{
-		dmi_print_memory_size("ROM Size", (u64)(code1 + 1) << 6, 1);
+		dmi_print_memory_size(pr_attr, "ROM Size", (u64)(code1 + 1) << 6, 1);
 	}
 	else
 		pr_attr("ROM Size", "%u %s", code2 & 0x3FFF, unit[code2 >> 14]);
@@ -1839,7 +1840,7 @@ static void dmi_cache_size_2(const char *attr, u32 code)
 	}
 
 	/* Use a more convenient unit for large cache size */
-	dmi_print_memory_size(attr, size, 1);
+	dmi_print_memory_size(pr_attr, attr, size, 1);
 }
 
 static void dmi_cache_size(const char *attr, u16 code)
@@ -2818,7 +2819,7 @@ static void dmi_memory_device_size(u16 code)
 		u64 s = (u64)code & 0x7FFFULL;
 		if (!(code & 0x8000))
 			s <<= 10;
-		dmi_print_memory_size("Size", s, 1);
+		dmi_print_memory_size(pr_attr, "Size", s, 1);
 	}
 }
 
@@ -3063,7 +3064,7 @@ static void dmi_memory_size(const char *attr, u64 code)
 	else if (code == 0ULL)
 		pr_attr(attr, "None");
 	else
-		dmi_print_memory_size(attr, code, 0);
+		dmi_print_memory_size(pr_attr, attr, code, 0);
 }
 
 static void dmi_memory_revision(const char *attr_type, u16 code, u8 mem_type)
@@ -3190,7 +3191,7 @@ static void dmi_mapped_address_size(u32 code)
 	if (code == 0)
 		pr_attr("Range Size", "Invalid");
 	else
-		dmi_print_memory_size("Range Size", (u64)code, 1);
+		dmi_print_memory_size(pr_attr, "Range Size", (u64)code, 1);
 }
 
 static void dmi_mapped_address_extended_size(u64 start, u64 end)
@@ -3198,7 +3199,7 @@ static void dmi_mapped_address_extended_size(u64 start, u64 end)
 	if (start == end)
 		pr_attr("Range Size", "Invalid");
 	else
-		dmi_print_memory_size("Range Size", end - start + 1, 0);
+		dmi_print_memory_size(pr_attr, "Range Size", end - start + 1, 0);
 }
 
 /*
@@ -4902,12 +4903,14 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 				if (h->length < 0x17)
 					pr_attr("Maximum Capacity", "Unknown");
 				else
-					dmi_print_memory_size("Maximum Capacity",
+					dmi_print_memory_size(pr_attr,
+							      "Maximum Capacity",
 							      QWORD(data + 0x0F), 0);
 			}
 			else
 			{
-				dmi_print_memory_size("Maximum Capacity",
+				dmi_print_memory_size(pr_attr,
+						      "Maximum Capacity",
 						      DWORD(data + 0x07), 1);
 			}
 			if (!(opt.flags & FLAG_QUIET))

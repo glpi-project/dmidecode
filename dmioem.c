@@ -1956,7 +1956,7 @@ static int dmi_decode_hp(const struct dmi_header *h, u16 ver)
 			pr_attr("Version String", "%s", dmi_string(h, data[0x0A]));
 
 			if (DWORD(data + 0x0B))
-				dmi_print_memory_size("Image Size", QWORD(data + 0xB), 0);
+				dmi_print_memory_size(pr_attr, "Image Size", QWORD(data + 0xB), 0);
 			else
 				pr_attr("Image Size", "Not Available");
 
@@ -2103,7 +2103,7 @@ static int dmi_decode_hp(const struct dmi_header *h, u16 ver)
 							  ((feat >> 1) & 0x01) ? "Byte Accessible" :
 							  ((feat >> 2) & 0x01) ? "Block I/O" :
 							  "Reserved");
-			dmi_print_memory_size("Size", QWORD(data + 0x09), 2);
+			dmi_print_memory_size(pr_attr, "Size", QWORD(data + 0x09), 2);
 			pr_attr("Passphrase Enabled", "%s", data[0x11] ? "Yes" : "No");
 			feat = WORD(data + 0x12);
 			if (feat)
