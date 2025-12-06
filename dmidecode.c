@@ -5585,7 +5585,7 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			break;
 
 		default:
-			if (dmi_decode_oem(h))
+			if (dmi_decode_oem(h, ver))
 				break;
 			if (opt.flags & FLAG_QUIET)
 				return;

@@ -2261,7 +2261,7 @@ static int dmi_decode_ibm_lenovo(const struct dmi_header *h)
  * Dispatch vendor-specific entries decoding
  * Return 1 if decoding was successful, 0 otherwise
  */
-int dmi_decode_oem(const struct dmi_header *h)
+int dmi_decode_oem(const struct dmi_header *h, u16 ver)
 {
 	switch (dmi_vendor)
 	{
