@@ -1014,7 +1014,7 @@ static void dmi_hp_245_pcie_mhs_riser(const struct dmi_header *h)
 static int dmi_decode_hp(const struct dmi_header *h, u16 ver)
 {
 	u8 *data = h->data;
-	int nic, ptr;
+	int nic, ptr, i;
 	u32 feat;
 	const char *company = (dmi_vendor == VENDOR_HP) ? "HP" : "HPE";
 	int gen;
@@ -1638,6 +1638,59 @@ static int dmi_decode_hp(const struct dmi_header *h, u16 ver)
 			if (QWORD(data + 0x0C) || QWORD(data + 0x04))
 				dmi_system_uuid(pr_attr, "UUID", data + 0x04, ver);
 			pr_attr("Serial Number", "%s", dmi_string(h, data[0x14]));
+			break;
+
+		case 229:
+			/*
+			 * Vendor Specific: Reserved Memory Location
+			 *
+			 * This OEM SMBIOS Record is used to communicate the physical address
+			 * location of memory regions reserved during POST by System Firmware.
+			 * These memory regions will be reserved for various purposes. It is
+			 * intended that this OEM SMBIOS Record be expandable to support any
+			 * future POST reserved memory requirements.  The regions reserved by
+			 * POST will typically be reported by INT15h E820h as reserved memory.
+			 * This record was initially defined to communicate to iLO FW and Smart
+			 * Array Storage FW the location of a memory buffer reserved for passing
+			 * information between the Smart Array Controller and iLO FW for providing
+			 * hard drive temperatures to iLO FW fan control.
+			 *
+			 * Note: Multiple Type 229 Records may exist in the SMBIOS Table because
+			 * each SMBIOS Record has a maximum length of 256 bytes and it is possible
+			 * that there eventually would be enough reserved memory locations such
+			 * that a single record could exceed this limit (each reserved memory
+			 * location utilizes 16 bytes). Software utilizing the Type 229 Record
+			 * should be written to handle the possibility of multiple records.
+			 *
+			 * Offset| Name        | Width | Description
+			 * -----------------------------------------
+			 *  0x00 | Type        | BYTE  | 0xE5, Reserved Memory Location
+			 *  0x01 | Length      | BYTE  | Length of structure
+			 *  0x02 | Handle      | WORD  | Unique handle
+			 *  0x04 | Signature   | DWORD | Enumerated value that indicates the type
+			 *                             | of memory described by this Reserved
+			 *                             | Memory Location
+			 *  0x08 | Phys Addr   | QWORD | 64-Bit physical memory address
+			 *  0x10 | Size of Loc | DWORD | Bit[30:0] - Size of the Memory Location
+			 *                             | Bit[31] - Indicates whether the size field in
+			 *                             | Bits[30:0] is in 1 byte or 1 Kbyte granularity
+			 *                             | 0 = Byte Granularity
+			 *                             | 1 = Kbyte Granularity
+			 *  0x14 | Mem Entries         | 16 Bytes per Reserved Memory Entry
+			 */
+			pr_handle_name("%s Reserved Memory Location", company);
+			for (ptr = 0x04, i = 1; ptr + 16 <= h->length; ptr += 16, i++)
+			{
+				pr_attr("Memory Location", "%d", i);
+				pr_subattr("Signature",
+					   "%.4s", data + ptr);
+				pr_subattr("Physical Address", "0x%016llX",
+					   QWORD(data + ptr + 0x04));
+				feat = DWORD(data + ptr + 0x0C);
+				dmi_print_memory_size(pr_subattr, "Size",
+						      feat & 0x7fffffff,
+						      feat >> 31);
+			}
 			break;
 
 		case 230:
