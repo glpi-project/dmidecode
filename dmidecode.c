@@ -2264,11 +2264,20 @@ static void dmi_slot_id(u8 code1, u8 code2, u8 type)
 		case 0x11: /* AGP */
 		case 0x12: /* PCI-X */
 		case 0x13: /* AGP */
-		case 0x1F: /* PCI Express 2 */
-		case 0x20: /* PCI Express 3 */
+		case 0x14: /* M.2 */
+		case 0x15: /* M.2 */
+		case 0x16: /* M.2 */
+		case 0x17: /* M.2 */
+		case 0x1F: /* PCI Express 2 (U.2) */
+		case 0x20: /* PCI Express 3 (U.2) */
 		case 0x21: /* PCI Express Mini */
 		case 0x22: /* PCI Express Mini */
 		case 0x23: /* PCI Express Mini */
+		case 0x24: /* PCI Express 4 (U.2) */
+		case 0x25: /* PCI Express 5 (U.2) */
+		case 0x26: /* OCP */
+		case 0x27: /* OCP */
+		case 0x28: /* OCP */
 		case 0xA5: /* PCI Express */
 		case 0xA6: /* PCI Express */
 		case 0xA7: /* PCI Express */
@@ -2300,6 +2309,8 @@ static void dmi_slot_id(u8 code1, u8 code2, u8 type)
 		case 0xC2: /* PCI Express 5 */
 		case 0xC3: /* PCI Express 5 */
 		case 0xC4: /* PCI Express 6+ */
+		case 0xC5: /* EDSFF */
+		case 0xC6: /* EDSFF */
 			pr_attr("ID", "%u", code1);
 			break;
 		case 0x07: /* PCMCIA */
