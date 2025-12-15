@@ -4628,8 +4628,17 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (h->length < 0x15 + data[0x13] * data[0x14]) break;
 			dmi_chassis_elements(data[0x13], data[0x14], data + 0x15);
 			if (h->length < 0x16 + data[0x13] * data[0x14]) break;
-			pr_attr("SKU Number", "%s",
-				dmi_string(h, data[0x15 + data[0x13] * data[0x14]]));
+			/*
+			 * Many old implementations have stray zero bytes at
+			 * the end of this record, probably due to some
+			 * confusion regarding the preceding variable length
+			 * section. Only decode the following fields if they
+			 * are defined in the SMBIOS specification version
+			 * which is implemented.
+			 */
+			if (ver >= 0x0207)
+				pr_attr("SKU Number", "%s",
+					dmi_string(h, data[0x15 + data[0x13] * data[0x14]]));
 			break;
 
 		case 4: /* 7.5 Processor Information */
