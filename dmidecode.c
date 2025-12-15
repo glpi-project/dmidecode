@@ -2085,7 +2085,7 @@ static const char *dmi_port_type(u8 code)
  * 7.10 System Slots (Type 9)
  */
 
-static const char *dmi_slot_type(u8 code)
+static void dmi_slot_type(u8 code, u8 length)
 {
 	/* 7.10.1 */
 	static const char *type[] = {
@@ -2178,14 +2178,35 @@ static const char *dmi_slot_type(u8 code)
 	 * Note to developers: when adding entries to these lists, check if
 	 * function dmi_slot_id below needs updating too.
 	 */
+	const char *t, *suffix = "";
 
 	if (code >= 0x01 && code <= 0x28)
-		return type[code - 0x01];
-	if (code == 0x30)
-		return type_0x30[code - 0x30];
-	if (code >= 0xA0 && code <= 0xC6)
-		return type_0xA0[code - 0xA0];
-	return out_of_spec;
+		t = type[code - 0x01];
+	else if (code == 0x30)
+		t = type_0x30[code - 0x30];
+	else if (code >= 0xA0 && code <= 0xC6)
+		t = type_0xA0[code - 0xA0];
+	else
+		t = out_of_spec;
+
+	/* For EDSFF slots, add the length suffix */
+	switch (code)
+	{
+		case 0xC5: /* EDSFF E1 */
+		case 0xC6: /* EDSFF E3 */
+			switch (length)
+			{
+				case 0x03: /* Short */
+					suffix = ".S";
+					break;
+				case 0x04: /* Long */
+					suffix = ".L";
+					break;
+			}
+			break;
+	}
+
+	pr_attr("Type", "%s%s", t, suffix);
 }
 
 static const char *dmi_slot_bus_width(u8 code)
@@ -4837,7 +4858,7 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (h->length < 0x0C) break;
 			pr_attr("Designation", "%s",
 				dmi_string(h, data[0x04]));
-			pr_attr("Type", "%s", dmi_slot_type(data[0x05]));
+			dmi_slot_type(data[0x05], data[0x08]);
 			pr_attr("Data Bus Width", "%s", dmi_slot_bus_width(data[0x06]));
 			pr_attr("Current Usage", "%s",
 				dmi_slot_current_usage(data[0x07]));
