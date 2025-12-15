@@ -25,9 +25,6 @@ CFLAGS += -W -Wall -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-qual \
 # Let lseek and mmap support 64-bit wide offsets
 CFLAGS += -D_FILE_OFFSET_BITS=64
 
-#CFLAGS += -DBIGENDIAN
-#CFLAGS += -DALIGNMENT_WORKAROUND
-
 # Pass linker flags here (can be set from environment too)
 LDFLAGS ?=
 
