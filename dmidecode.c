@@ -2890,10 +2890,13 @@ static const char *dmi_memory_device_form_factor(u8 code)
 		"SODIMM",
 		"SRIMM",
 		"FB-DIMM",
-		"Die" /* 0x10 */
+		"Die",
+		"CAMM",
+		"CUDIMM",
+		"CSODIMM" /* 0x13 */
 	};
 
-	if (code >= 0x01 && code <= 0x10)
+	if (code >= 0x01 && code <= 0x13)
 		return form_factor[code - 0x01];
 	return out_of_spec;
 }
@@ -2947,10 +2950,11 @@ static const char *dmi_memory_device_type(u8 code)
 		"HBM2",
 		"DDR5",
 		"LPDDR5",
-		"HBM3" /* 0x24 */
+		"HBM3",
+		"MRDIMM" /* 0x25 */
 	};
 
-	if (code >= 0x01 && code <= 0x24)
+	if (code >= 0x01 && code <= 0x25)
 		return type[code - 0x01];
 	return out_of_spec;
 }
@@ -3020,9 +3024,10 @@ static void dmi_memory_technology(u8 code)
 		"NVDIMM-N",
 		"NVDIMM-F",
 		"NVDIMM-P",
-		"Intel Optane DC persistent memory" /* 0x07 */
+		"Intel Optane persistent memory",
+		"MRDIMM" /* 0x08 */
 	};
-	if (code >= 0x01 && code <= 0x07)
+	if (code >= 0x01 && code <= 0x08)
 		pr_attr("Memory Technology", "%s", technology[code - 0x01]);
 	else
 		pr_attr("Memory Technology", "%s", out_of_spec);
