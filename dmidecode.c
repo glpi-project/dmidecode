@@ -3014,7 +3014,7 @@ static void dmi_memory_device_speed(const char *attr, u16 code1, u32 code2)
 	}
 }
 
-static void dmi_memory_technology(u8 code)
+static const char *dmi_memory_technology(u8 code)
 {
 	/* 7.18.6 */
 	static const char * const technology[] = {
@@ -3028,9 +3028,8 @@ static void dmi_memory_technology(u8 code)
 		"MRDIMM" /* 0x08 */
 	};
 	if (code >= 0x01 && code <= 0x08)
-		pr_attr("Memory Technology", "%s", technology[code - 0x01]);
-	else
-		pr_attr("Memory Technology", "%s", out_of_spec);
+		return technology[code - 0x01];
+	return out_of_spec;
 }
 
 static void dmi_memory_operating_mode_capability(u16 code)
@@ -5024,7 +5023,8 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			dmi_memory_voltage_value("Configured Voltage",
 						 WORD(data + 0x26));
 			if (h->length < 0x34) break;
-			dmi_memory_technology(data[0x28]);
+			pr_attr("Memory Technology", "%s",
+				dmi_memory_technology(data[0x28]));
 			dmi_memory_operating_mode_capability(WORD(data + 0x29));
 			pr_attr("Firmware Version", "%s",
 				dmi_string(h, data[0x2B]));
