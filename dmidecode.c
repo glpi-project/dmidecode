@@ -773,6 +773,18 @@ static void dmi_chassis_elements(u8 count, u8 len, const u8 *p)
 	pr_list_end();
 }
 
+static const char *dmi_chassis_rack_type(u8 code)
+{
+	static const char *type[] = {
+		"Unspecified", /* 0x00 */
+		"OU" /* 0x01 */
+	};
+
+	if (code <= 0x01)
+		return type[code];
+	return out_of_spec;
+}
+
 /*
  * 7.5 Processor Information (Type 4)
  */
@@ -4622,7 +4634,8 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			pr_attr("OEM Information", "0x%08X",
 				DWORD(data + 0x0D));
 			if (h->length < 0x13) break;
-			dmi_chassis_height(data[0x11]);
+			if (data[0x11] != 0xFF)
+				dmi_chassis_height(data[0x11]);
 			dmi_chassis_power_cords(data[0x12]);
 			if (h->length < 0x15) break;
 			if (h->length < 0x15 + data[0x13] * data[0x14]) break;
@@ -4639,6 +4652,14 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (ver >= 0x0207)
 				pr_attr("SKU Number", "%s",
 					dmi_string(h, data[0x15 + data[0x13] * data[0x14]]));
+			if (h->length < 0x18 + data[0x13] * data[0x14]) break;
+			if (ver >= 0x0309)
+			{
+				pr_attr("Rack Type", "%s",
+					dmi_chassis_rack_type(data[0x16 + data[0x13] * data[0x14]]));
+				pr_attr("Rack Height", "%hhu",
+					data[0x17 + data[0x13] * data[0x14]]);
+			}
 			break;
 
 		case 4: /* 7.5 Processor Information */
