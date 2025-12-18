@@ -1,3 +1,18 @@
+Version 3.7 (Thu Dec 18 2025)
+  - [COMPATIBILITY] Use binary unit prefixes.
+  - [COMPATIBILITY] Rename BIOS to Firmware.
+  - [PORTABILITY] Improve variable declarations.
+  - [PORTABILITY] Stop open-coding the u64 type.
+  - [PORTABILITY] Use unaligned memory accesses unconditionally.
+  - [PORTABILITY] No longer build with -Winline.
+  - Support for SMBIOS 3.8.0. This includes a new processor family.
+  - Support for SMBIOS 3.9.0. This includes chassis type name adjustments,
+    new rack attributes, slot ID for more slot types, and new memory device
+    form factors and types.
+  - Decode HPE OEM records 193, 195, 202, 211, 226, 229, 232 and 244.
+  - Update HPE OEM records 203, 216, 242 and 245.
+  - EDSFF slot names now include their .S/.L suffix.
+
 Version 3.6 (Wed Apr 24 2024)
   - [PORTABILITY] Use -DALIGNMENT_WORKAROUND on arm.
   - [PORTABILITY] Read SMBIOS entry point via kenv on DragonFly BSD.
