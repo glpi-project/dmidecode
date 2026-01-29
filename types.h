@@ -41,6 +41,7 @@ typedef u8 BOOLEAN;
  * ordering convention.
  */
 
+#ifndef WINSMBIOS_H
 static inline u16 WORD(const void *x)
 {
 	u16 ret;
@@ -82,6 +83,7 @@ static inline u64 QWORD(const void *x)
 #endif
 	return ret;
 }
+#endif /* WINSMBIOS_H */
 
 #undef BIGENDIAN
 
